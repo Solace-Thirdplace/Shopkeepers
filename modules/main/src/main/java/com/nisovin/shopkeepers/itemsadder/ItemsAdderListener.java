@@ -1,14 +1,25 @@
 package com.nisovin.shopkeepers.itemsadder;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.TradeSelectEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import com.nisovin.shopkeepers.SKShopkeepersPlugin;
 import com.nisovin.shopkeepers.api.events.ShopkeeperTradeEvent;
 import com.nisovin.shopkeepers.api.events.UpdateItemEvent;
+import com.nisovin.shopkeepers.api.internal.util.Unsafe;
+import com.nisovin.shopkeepers.api.ui.DefaultUITypes;
+import com.nisovin.shopkeepers.api.ui.UISession;
 import com.nisovin.shopkeepers.api.util.UnmodifiableItemStack;
 import com.nisovin.shopkeepers.debug.DebugOptions;
 import com.nisovin.shopkeepers.util.inventory.ItemUtils;
@@ -17,6 +28,7 @@ import com.nisovin.shopkeepers.util.logging.Log;
 
 import dev.lone.itemsadder.api.CustomStack;
 import dev.lone.itemsadder.api.Events.ItemsAdderLoadDataEvent;
+import dev.lone.itemsadder.api.ItemsAdder;
 
 /**
  * Handles the events involved in the {@link ItemsAdderIntegration}.
@@ -29,6 +41,10 @@ class ItemsAdderListener implements Listener {
 	private final SKShopkeepersPlugin plugin;
 	// Whether an item update triggered by an ItemsAdderLoadDataEvent is currently pending:
 	private boolean updatePending = false;
+	// Fallback index to identify legacy ItemsAdder items that were created before ItemsAdder
+	// tagged its items with their id: Maps the material and custom model data of the current
+	// ItemsAdder items to their namespaced id.
+	private final Map<Material, Map<Float, String>> itemIdsByModelData = new HashMap<>();
 
 	ItemsAdderListener(SKShopkeepersPlugin plugin) {
 		Validate.notNull(plugin, "plugin is null");
@@ -46,9 +62,34 @@ class ItemsAdderListener implements Listener {
 		// called from within an event handler:
 		Bukkit.getScheduler().runTask(plugin, () -> {
 			updatePending = false;
+			this.rebuildModelDataIndex();
 			int updatedItems = plugin.updateItems();
 			Log.info("ItemsAdder loaded its items: Updated " + updatedItems + " stored items.");
 		});
+	}
+
+	private void rebuildModelDataIndex() {
+		itemIdsByModelData.clear();
+		for (CustomStack customStack : ItemsAdder.getAllItems()) {
+			if (customStack == null) continue;
+			ItemStack item = customStack.getItemStack();
+			if (ItemUtils.isEmpty(item)) continue;
+
+			ItemMeta itemMeta = item.getItemMeta();
+			if (itemMeta == null || !itemMeta.hasCustomModelData()) continue;
+
+			String namespacedId = Unsafe.assertNonNull(customStack.getNamespacedID());
+			Material material = item.getType();
+			Map<Float, String> itemIds = itemIdsByModelData.get(material);
+			if (itemIds == null) {
+				itemIds = new HashMap<>();
+				itemIdsByModelData.put(material, itemIds);
+			}
+			for (Float modelData : itemMeta.getCustomModelDataComponent().getFloats()) {
+				if (modelData == null) continue;
+				itemIds.putIfAbsent(modelData, namespacedId);
+			}
+		}
 	}
 
 	// Called for all stored items when the items are updated, e.g. triggered by the
@@ -78,6 +119,27 @@ class ItemsAdderListener implements Listener {
 				+ ": Replaced the result item with a freshly created ItemsAdder item.");
 	}
 
+	// ItemsAdder cancels TradeSelectEvents when it suspects that a trade might consume custom
+	// items as if they were vanilla items (e.g. when a stored cost item predates ItemsAdder's
+	// item tagging and the player carries a custom item of the same material). Within shopkeeper
+	// trading UIs, this protection is unnecessary (Shopkeepers itself verifies that the traded
+	// items match the trading recipe) and harmful: The cancelled trade selection desyncs the
+	// player's selected trade from the server, resulting in players receiving the items of a
+	// previously selected trade.
+	@EventHandler(priority = EventPriority.HIGHEST)
+	void onTradeSelect(TradeSelectEvent event) {
+		if (!event.isCancelled()) return;
+		if (!(event.getWhoClicked() instanceof Player player)) return;
+
+		UISession uiSession = plugin.getUIRegistry().getUISession(player);
+		if (uiSession == null) return;
+		if (uiSession.getUIType() != DefaultUITypes.TRADING()) return;
+
+		event.setCancelled(false);
+		Log.debug(() -> "Reverted the cancelled trade selection of player " + player.getName()
+				+ " inside the shopkeeper trading UI.");
+	}
+
 	/**
 	 * Freshly recreates the given item based on ItemsAdder's current item configurations, if it is
 	 * an ItemsAdder item.
@@ -90,10 +152,17 @@ class ItemsAdderListener implements Listener {
 	 */
 	private @Nullable ItemStack recreateItem(UnmodifiableItemStack item) {
 		assert item != null && !ItemUtils.isEmpty(item);
+		String namespacedId;
 		CustomStack customStack = CustomStack.byItemStack(item.copy());
-		if (customStack == null) return null; // Not an ItemsAdder item
+		if (customStack != null) {
+			namespacedId = customStack.getNamespacedID();
+		} else {
+			// Fallback for legacy items without identifying ItemsAdder data:
+			namespacedId = this.getItemIdByModelData(item);
+			if (namespacedId == null) return null; // Not an ItemsAdder item
+		}
 
-		CustomStack freshCustomStack = CustomStack.getInstance(customStack.getNamespacedID());
+		CustomStack freshCustomStack = CustomStack.getInstance(namespacedId);
 		if (freshCustomStack == null) return null; // No longer exists in the item registry
 
 		ItemStack freshItem = freshCustomStack.getItemStack();
@@ -104,5 +173,20 @@ class ItemsAdderListener implements Listener {
 		if (item.equals(freshItem)) return null; // The item is already up-to-date
 
 		return freshItem;
+	}
+
+	private @Nullable String getItemIdByModelData(UnmodifiableItemStack item) {
+		Map<Float, String> itemIds = itemIdsByModelData.get(item.getType());
+		if (itemIds == null) return null;
+
+		ItemMeta itemMeta = item.getItemMeta();
+		if (itemMeta == null || !itemMeta.hasCustomModelData()) return null;
+
+		for (Float modelData : itemMeta.getCustomModelDataComponent().getFloats()) {
+			if (modelData == null) continue;
+			String namespacedId = itemIds.get(modelData);
+			if (namespacedId != null) return namespacedId;
+		}
+		return null;
 	}
 }
