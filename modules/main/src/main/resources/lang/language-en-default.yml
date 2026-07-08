@@ -76,6 +76,11 @@ button-container: "&aView shop inventory"
 button-container-lore:
 - Lets you view the inventory
 - your shopkeeper is using
+button-members: "&aManage Members"
+button-members-lore:
+- Add or remove members
+- who can help manage
+- this shop
 button-trade-notifications: "&aTrade Notifications"
 button-trade-notifications-lore:
 - "Toggles trade notifications"
@@ -373,6 +378,19 @@ name-set: "&aThe shop's name has been set to '&e{name}&a'!"
 name-has-not-changed: "&aThe shop's name has not changed."
 name-invalid: "&cInvalid shop name: '&e{name}&c'"
 nameplate-prefix: "&2"
+
+type-member-name: "&aPlease enter the player name to add as a member in chat.\n  &aEnter a dash (-) to cancel."
+member-added: "&a'&e{member}&a' has been added as a member of this shop!"
+member-already-added: "&7'&e{member}&7' is already a member of this shop."
+member-is-owner: "&7The owner cannot be added as a member."
+member-removed: "&a'&e{member}&a' has been removed from this shop's members."
+member-not-found: "&7'&e{member}&7' is not a member of this shop."
+member-limit-reached: "&7This shop has reached the maximum number of members!"
+member-player-not-found: "&7Could not find player '&e{player}&7'."
+members-list-header: "&6Members of this shop:"
+members-list-entry: "&e  - {member}"
+members-list-empty: "&7This shop has no members."
+type-remove-member-name: "&aPlease enter the player name to remove from members in chat.\n  &aEnter a dash (-) to cancel."
 
 click-new-shop-location: "&aPlease right-click the shop's new location.\n  &aLeft-click to abort."
 shopkeeper-moved: "&aThe shopkeeper has been moved!"

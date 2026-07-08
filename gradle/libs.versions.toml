@@ -17,6 +17,7 @@ worldguard = "7.0.0"
 towny = "0.98.1.0"
 citizens = "2.0.30-SNAPSHOT"
 vault = "1.7.1"
+itemsadder = "3.6.3-beta-14"
 bstats = "1.5"
 
 junit = "4.13.1"
@@ -39,6 +40,7 @@ worldguard-bukkit = { module = "com.sk89q.worldguard:worldguard-bukkit", version
 towny = { module = "com.palmergames.bukkit.towny:towny", version.ref = "towny" }
 citizens-main = { module = "net.citizensnpcs:citizens-main", version.ref = "citizens" }
 vault-api = { module = "com.github.MilkBowl:VaultAPI", version.ref = "vault" }
+itemsadder-api = { module = "com.github.LoneDev6:api-itemsadder", version.ref = "itemsadder" }
 bstats-bukkit = { module = "org.bstats:bstats-bukkit", version.ref = "bstats" }
 
 junit = { module = "junit:junit", version.ref = "junit" }
