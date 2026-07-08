@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import com.nisovin.shopkeepers.api.events.ShopkeeperEditedEvent;
 import com.nisovin.shopkeepers.api.shopkeeper.player.PlayerShopkeeper;
@@ -83,7 +84,7 @@ public class ShopkeeperMembers {
 
   public void abortMemberInput(Player player) {
     Validate.notNull(player, "player is null");
-    InputRequest<String> request = chatInput.getRequest(player);
+    @Nullable InputRequest<String> request = chatInput.getRequest(player);
     if (request instanceof MemberInputRequest) {
       chatInput.abortRequest(player, request);
     }
@@ -132,7 +133,7 @@ public class ShopkeeperMembers {
   private void handleRemoveMember(Player player, AbstractPlayerShopkeeper shopkeeper, String playerName) {
     // Find the member by name:
     List<? extends User> members = shopkeeper.getMembers();
-    User targetMember = null;
+    @Nullable User targetMember = null;
     for (User member : members) {
       if (member.getLastKnownName().equalsIgnoreCase(playerName)) {
         targetMember = member;

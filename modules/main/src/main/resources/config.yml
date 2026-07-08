@@ -215,6 +215,12 @@ max-shops-per-player: -1
 # nodes can only be used to increase the default limit, not decrease it.
 max-shops-perm-options: 5,15,25
 
+# The permission level that members of player shops receive. Currently, only
+# 'FULL' is supported.
+member-permissions: FULL
+# The maximum number of members per player shop.
+max-members-per-shop: 5
+
 # Whether to protect player shop containers from being accessed or broken. It
 # is usually recommended keeping this enabled.
 protect-containers: true
@@ -575,6 +581,9 @@ move-item: 'minecraft:ender_pearl'
 enable-container-option-on-player-shop: true
 # The item used for the 'open container' editor button.
 container-item: 'minecraft:chest'
+
+# The item used for the 'manage members' editor button in player shops.
+members-item: 'minecraft:player_head'
 
 # The item used for the trade notifications editor button in player shops.
 trade-notifications-item: 'minecraft:bell'

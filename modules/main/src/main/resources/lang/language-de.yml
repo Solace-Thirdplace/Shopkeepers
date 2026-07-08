@@ -71,6 +71,11 @@ button-container: "&aShop-Inventar öffnen"
 button-container-lore:
 - Zeigt dir das Inventar
 - deines Verkäufers
+button-members: "&aMitglieder verwalten"
+button-members-lore:
+- Mitglieder hinzufügen oder
+- entfernen, die diesen Shop
+- mitverwalten dürfen
 button-trade-notifications: "&aHandelsbenachrichtigungen"
 button-trade-notifications-lore:
 - "Schaltet Handelsbenachrichtigungen"
@@ -381,6 +386,19 @@ name-set: "&aDer Name des Shops wurde auf '&e{name}&a' gesetzt!"
 name-has-not-changed: "&aDer Shop-Name hat sich nicht geändert."
 name-invalid: "&cUngültiger Shop-Name: '&e{name}&c'"
 nameplate-prefix: "&2"
+
+type-member-name: "&aBitte gib den Namen des Spielers, der als Mitglied hinzugefügt werden soll, im Chat ein.\n  &aGib einen Bindestrich (-) ein, um abzubrechen."
+member-added: "&a'&e{member}&a' wurde als Mitglied dieses Shops hinzugefügt!"
+member-already-added: "&7'&e{member}&7' ist bereits ein Mitglied dieses Shops."
+member-is-owner: "&7Der Besitzer kann nicht als Mitglied hinzugefügt werden."
+member-removed: "&a'&e{member}&a' wurde aus den Mitgliedern dieses Shops entfernt."
+member-not-found: "&7'&e{member}&7' ist kein Mitglied dieses Shops."
+member-limit-reached: "&7Dieser Shop hat die maximale Anzahl an Mitgliedern erreicht!"
+member-player-not-found: "&7Der Spieler '&e{player}&7' wurde nicht gefunden."
+members-list-header: "&6Mitglieder dieses Shops:"
+members-list-entry: "&e  - {member}"
+members-list-empty: "&7Dieser Shop hat keine Mitglieder."
+type-remove-member-name: "&aBitte gib den Namen des Spielers, der aus den Mitgliedern entfernt werden soll, im Chat ein.\n  &aGib einen Bindestrich (-) ein, um abzubrechen."
 
 click-new-shop-location: "&aBitte rechtsklicke den neuen Standort des Shops.\n  &aZum Abbrechen linksklicken."
 shopkeeper-moved: "&aDer Shop wurde verschoben!"
