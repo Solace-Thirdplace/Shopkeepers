@@ -123,6 +123,17 @@ register-world-guard-allow-shop-flag: true
 # have been designated as commercial areas by Towny.
 enable-towny-restrictions: false
 
+# If enabled, and if the ItemsAdder plugin is present, we automatically keep
+# stored ItemsAdder items up-to-date: Whenever ItemsAdder loads or reloads its
+# item configurations, all stored items are updated (see the 'updateItems'
+# command). Additionally, whenever a trade would give an ItemsAdder item to the
+# trading player, the item is replaced with a freshly created instance based on
+# ItemsAdder's current item configuration.
+# Note: Updating an ItemsAdder item recreates it from its ItemsAdder item
+# configuration. Any manual modifications to the stored item stacks, such as
+# custom display names, are discarded during the update.
+enable-items-adder-integration: true
+
 # If enabled, players are only able to place shopkeepers in places where no
 # other plugin denies them to interact with blocks.
 check-spawn-location-interaction-result: false

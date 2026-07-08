@@ -4,6 +4,11 @@ Date format: (YYYY-MM-DD)
 ## v2.26.2 (TBA)
 ### Supported MC versions: 26.1.2, 1.21.11, 1.21.10, 1.21.8, 1.21.7, 1.21.6, 1.21.5
 
+* Add ItemsAdder integration: If the ItemsAdder plugin is present, we automatically keep stored ItemsAdder items up-to-date.
+  * Config: Add setting `enable-items-adder-integration` (default: `true`).
+  * Whenever ItemsAdder loads or reloads its item configurations, we trigger an update of all stored items (see the `updateItems` command).
+  * During item updates, items that are detected to be ItemsAdder items are replaced with freshly created instances based on ItemsAdder's current item configurations. Note: Any manual modifications to the stored item stacks, such as custom display names, are discarded during the update.
+  * As a safety net, whenever a trade would give an outdated ItemsAdder item to the trading player, the result item is replaced with a freshly created instance.
 
 ## v2.26.1 (2026-04-12)
 ### Supported MC versions: 26.1.2, 1.21.11, 1.21.10, 1.21.8, 1.21.7, 1.21.6, 1.21.5
