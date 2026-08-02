@@ -94,6 +94,7 @@ public class Settings extends Config {
 	public static boolean enableTownyRestrictions = false;
 
 	public static boolean enableItemsAdderIntegration = true;
+	public static List<String> itemsAdderItemUpdateExclusions = new ArrayList<>(0);
 
 	public static boolean checkSpawnLocationInteractionResult = false;
 

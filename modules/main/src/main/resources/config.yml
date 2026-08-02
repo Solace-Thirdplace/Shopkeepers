@@ -131,8 +131,21 @@ enable-towny-restrictions: false
 # ItemsAdder's current item configuration.
 # Note: Updating an ItemsAdder item recreates it from its ItemsAdder item
 # configuration. Any manual modifications to the stored item stacks, such as
-# custom display names, are discarded during the update.
+# custom display names, are discarded during the update. However, custom tags
+# that other plugins have added to the item (its 'persistent data container',
+# e.g. CMI's attached commands) are preserved: They are copied over to the
+# freshly created item, unless ItemsAdder defines a tag with the same key
+# itself.
 enable-items-adder-integration: true
+
+# The namespaced ids of ItemsAdder items that are excluded from the automatic
+# item updates described above, e.g. ['custom:instant_villager_pair'].
+# Use this for items whose stored copies intentionally differ from their
+# ItemsAdder item configuration in ways that cannot be preserved automatically,
+# such as custom display names, lore, or enchantments.
+# The ids are compared case-insensitively. Excluding an item also excludes it
+# from the item replacement that occurs during trades.
+items-adder-item-update-exclusions: []
 
 # If enabled, players are only able to place shopkeepers in places where no
 # other plugin denies them to interact with blocks.

@@ -7,14 +7,18 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.TradeSelectEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import com.nisovin.shopkeepers.SKShopkeepersPlugin;
 import com.nisovin.shopkeepers.api.events.ShopkeeperTradeEvent;
 import com.nisovin.shopkeepers.api.events.UpdateItemEvent;
+import com.nisovin.shopkeepers.api.internal.util.Unsafe;
 import com.nisovin.shopkeepers.api.ui.DefaultUITypes;
 import com.nisovin.shopkeepers.api.ui.UISession;
 import com.nisovin.shopkeepers.api.util.UnmodifiableItemStack;
+import com.nisovin.shopkeepers.config.Settings;
 import com.nisovin.shopkeepers.debug.DebugOptions;
 import com.nisovin.shopkeepers.util.inventory.ItemUtils;
 import com.nisovin.shopkeepers.util.java.Validate;
@@ -111,20 +115,29 @@ class ItemsAdderListener implements Listener {
 	 * @param item
 	 *            the item, not <code>null</code> or empty
 	 * @return the freshly created item, with the original item's stack size, or <code>null</code>
-	 *         if the item is not an ItemsAdder item, no longer exists in ItemsAdder's item
-	 *         registry, or is already up-to-date
+	 *         if the item is not an ItemsAdder item, is excluded from the item updates, no longer
+	 *         exists in ItemsAdder's item registry, or is already up-to-date
 	 */
 	private @Nullable ItemStack recreateItem(UnmodifiableItemStack item) {
 		assert item != null && !ItemUtils.isEmpty(item);
+		ItemStack itemCopy = item.copy();
 		// Note: This intentionally only detects items that ItemsAdder itself can positively
 		// identify (i.e. items that carry ItemsAdder's identifying data). Guessing the identity of
 		// legacy untagged items, e.g. based on their custom model data, is not safe: Custom model
 		// data assignments can shift between resource pack versions, e.g. towards auto-generated
 		// auxiliary items such as animation frames.
-		CustomStack customStack = CustomStack.byItemStack(item.copy());
+		CustomStack customStack = CustomStack.byItemStack(itemCopy);
 		if (customStack == null) return null; // Not an ItemsAdder item
 
-		CustomStack freshCustomStack = CustomStack.getInstance(customStack.getNamespacedID());
+		// The ItemsAdder API is not annotated: A valid CustomStack always has a namespaced id.
+		String namespacedId = Unsafe.assertNonNull(customStack.getNamespacedID());
+		if (isExcluded(namespacedId)) {
+			Log.debug(DebugOptions.itemUpdates, () -> "Skipping the update of the excluded"
+					+ " ItemsAdder item '" + namespacedId + "'.");
+			return null;
+		}
+
+		CustomStack freshCustomStack = CustomStack.getInstance(namespacedId);
 		if (freshCustomStack == null) return null; // No longer exists in the item registry
 
 		ItemStack freshItem = freshCustomStack.getItemStack();
@@ -132,8 +145,54 @@ class ItemsAdderListener implements Listener {
 
 		freshItem = freshItem.clone();
 		freshItem.setAmount(item.getAmount());
+		copyMissingCustomTags(itemCopy, freshItem);
 		if (item.equals(freshItem)) return null; // The item is already up-to-date
 
 		return freshItem;
+	}
+
+	/**
+	 * Checks whether the given ItemsAdder item is excluded from the item updates.
+	 *
+	 * @param namespacedId
+	 *            the item's ItemsAdder namespaced id, not <code>null</code>
+	 * @return <code>true</code> if the item is excluded
+	 */
+	private static boolean isExcluded(String namespacedId) {
+		for (String excludedId : Settings.itemsAdderItemUpdateExclusions) {
+			if (excludedId.equalsIgnoreCase(namespacedId)) return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Copies the custom tags (i.e. the contents of the
+	 * {@link ItemMeta#getPersistentDataContainer() persistent data container}) of the given source
+	 * item that the given target item does not define itself over to the target item.
+	 * <p>
+	 * ItemsAdder item configurations cannot represent the custom tags that other plugins may have
+	 * added to an item, e.g. CMI's attached commands. Recreating an item from its ItemsAdder item
+	 * configuration would therefore silently strip these tags and thereby break the functionality
+	 * that other plugins associate with the item.
+	 *
+	 * @param sourceItem
+	 *            the source item, not <code>null</code>
+	 * @param targetItem
+	 *            the target item, not <code>null</code>
+	 */
+	private static void copyMissingCustomTags(ItemStack sourceItem, ItemStack targetItem) {
+		@Nullable ItemMeta sourceMeta = sourceItem.getItemMeta();
+		if (sourceMeta == null) return;
+
+		PersistentDataContainer sourceTags = sourceMeta.getPersistentDataContainer();
+		if (sourceTags.isEmpty()) return;
+
+		@Nullable ItemMeta targetMeta = targetItem.getItemMeta();
+		if (targetMeta == null) return;
+
+		// Tags that ItemsAdder defines itself take precedence:
+		PersistentDataContainer targetTags = targetMeta.getPersistentDataContainer();
+		sourceTags.copyTo(targetTags, false);
+		targetItem.setItemMeta(targetMeta);
 	}
 }
