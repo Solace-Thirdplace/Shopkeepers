@@ -53,7 +53,8 @@ jobs:
     - name: Build Shopkeepers
       run: ./build.sh
     - name: Run SonarCloud analysis
-      if: github.event_name != 'pull_request'
+      # Skipped for pull requests and on forks without a configured SONAR_TOKEN secret:
+      if: github.event_name != 'pull_request' && secrets.SONAR_TOKEN != ''
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }} # Not available for pull request builds

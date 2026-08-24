@@ -40,6 +40,7 @@ import com.nisovin.shopkeepers.dependencies.worldguard.WorldGuardDependency;
 import com.nisovin.shopkeepers.input.chat.ChatInput;
 import com.nisovin.shopkeepers.input.interaction.InteractionInput;
 import com.nisovin.shopkeepers.internals.SKApiInternals;
+import com.nisovin.shopkeepers.itemsadder.ItemsAdderIntegration;
 import com.nisovin.shopkeepers.lang.Messages;
 import com.nisovin.shopkeepers.metrics.PluginMetrics;
 import com.nisovin.shopkeepers.moving.ShopkeeperMoving;
@@ -86,6 +87,7 @@ public class SKShopkeepersPlugin extends JavaPlugin implements InternalShopkeepe
 					// Skip classes that interact with optional dependencies:
 					"com.nisovin.shopkeepers.dependencies.worldguard.WorldGuardDependency$Internal",
 					"com.nisovin.shopkeepers.dependencies.citizens.CitizensUtils$Internal",
+					"com.nisovin.shopkeepers.itemsadder.ItemsAdderListener",
 					"com.nisovin.shopkeepers.shopobjects.citizens.CitizensShopkeeperTrait",
 					"com.nisovin.shopkeepers.spigot.text.SpigotText$Internal"
 			))
@@ -144,6 +146,8 @@ public class SKShopkeepersPlugin extends JavaPlugin implements InternalShopkeepe
 	private final InteractionInput interactionInput = new InteractionInput(Unsafe.initialized(this));
 
 	private final CommandTrading commandTrading = new CommandTrading(Unsafe.initialized(this));
+	private final ItemsAdderIntegration itemsAdderIntegration = new ItemsAdderIntegration(
+			Unsafe.initialized(this));
 	private final TradeLoggers tradeLoggers = new TradeLoggers(Unsafe.initialized(this));
 	private final TradeNotifications tradeNotifications = new TradeNotifications(
 			Unsafe.initialized(this)
@@ -458,6 +462,9 @@ public class SKShopkeepersPlugin extends JavaPlugin implements InternalShopkeepe
 
 		commandTrading.onEnable();
 
+		// ItemsAdder integration:
+		itemsAdderIntegration.onEnable();
+
 		// Trade loggers:
 		tradeLoggers.onEnable();
 
@@ -532,6 +539,9 @@ public class SKShopkeepersPlugin extends JavaPlugin implements InternalShopkeepe
 		playerShops.onDisable();
 
 		commandTrading.onDisable();
+
+		// ItemsAdder integration:
+		itemsAdderIntegration.onDisable();
 
 		// Trade loggers:
 		tradeLoggers.onDisable();

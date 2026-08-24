@@ -55,6 +55,15 @@ Date format: (YYYY-MM-DD)
   * `shop-setup-desc-book`
   * `shop-setup-desc-admin-regular`
 
+* Add ItemsAdder integration: If the ItemsAdder plugin is present, we automatically keep stored ItemsAdder items up-to-date.
+  * Config: Add setting `enable-items-adder-integration` (default: `true`).
+  * Whenever ItemsAdder loads or reloads its item configurations, we trigger an update of all stored items (see the `updateItems` command).
+  * During item updates, items that are detected to be ItemsAdder items are replaced with freshly created instances based on ItemsAdder's current item configurations. Note: Any manual modifications to the stored item stacks, such as custom display names, are discarded during the update.
+  * As a safety net, whenever a trade would give an outdated ItemsAdder item to the trading player, the result item is replaced with a freshly created instance.
+  * Note: Only items that ItemsAdder can positively identify are updated. Legacy items without identifying ItemsAdder data are intentionally left untouched: Guessing their identity, e.g. based on their custom model data, is not safe, because custom model data assignments can shift between resource pack versions.
+  * Fix: Revert cancelled trade selections inside shopkeeper trading UIs. ItemsAdder cancels trade select events when it suspects that a trade might consume custom items as if they were vanilla items. Within shopkeeper trading UIs, this protection is unnecessary and desyncs the player's selected trade from the server, resulting in players receiving the items of a previously selected trade.
+* Fork compatibility: Shop members that were stored by this fork's own previous shop members implementation are loaded with the `full` access level, matching the access those members had before.
+
 Removed messages:  
 * `button-container`
 * `button-container-lore`

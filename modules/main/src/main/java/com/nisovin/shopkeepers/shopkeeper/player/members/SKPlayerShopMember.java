@@ -138,7 +138,12 @@ public final class SKPlayerShopMember implements PlayerShopMember {
 			try {
 				var userUniqueId = memberData.get(UNIQUE_ID);
 				var userName = memberData.get(NAME);
-				var accessLevel = memberData.get(ACCESS_LEVEL);
+				// Fork compatibility: Shop members stored by this fork's previous own shop
+				// members implementation have no access level. They were always granted full
+				// access, so we migrate them to the "full" access level.
+				var accessLevel = memberData.get("access") != null
+						? memberData.get(ACCESS_LEVEL)
+						: DefaultPlayerShopAccessLevels.FULL();
 
 				var user = SKUser.of(userUniqueId, userName);
 				return new SKPlayerShopMember(user, false, accessLevel);
