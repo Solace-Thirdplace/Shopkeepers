@@ -95,6 +95,7 @@ public class Settings extends Config {
 
 	public static boolean enableItemsAdderIntegration = true;
 	public static List<String> itemsAdderItemUpdateExclusions = new ArrayList<>(0);
+	public static boolean itemsAdderMatchStockById = true;
 
 	public static boolean checkSpawnLocationInteractionResult = false;
 
