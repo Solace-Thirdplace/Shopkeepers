@@ -149,6 +149,24 @@ enable-items-adder-integration: true
 # from the item replacement that occurs during trades.
 items-adder-item-update-exclusions: []
 
+# If enabled, and if the ItemsAdder plugin is present, player shopkeepers
+# identify the ItemsAdder items in their containers by their ItemsAdder
+# namespaced id, instead of comparing them strictly against the items of their
+# offers.
+# ItemsAdder recreates its items whenever it loads or reloads its item
+# configurations, including the ids of any attribute modifiers they carry. The
+# item stacks inside a shopkeeper's containers are not recreated along with the
+# stored offer items, so a strict comparison eventually stops matching and the
+# shopkeeper reports itself as out of stock even though the container is full.
+# Only the data that the ItemsAdder item configuration does not define itself is
+# still compared: enchantments, stored enchantments, durability, the unbreakable
+# flag, and the custom tags of other plugins. Differences in display data, such
+# as a manually renamed copy of an item, no longer separate one stock item from
+# another.
+# Items listed in 'items-adder-item-update-exclusions' keep the strict
+# comparison.
+items-adder-match-stock-by-id: true
+
 # If enabled, players are only able to place shopkeepers in places where no
 # other plugin denies them to interact with blocks.
 check-spawn-location-interaction-result: false

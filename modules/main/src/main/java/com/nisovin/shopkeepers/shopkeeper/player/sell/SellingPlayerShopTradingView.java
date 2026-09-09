@@ -8,6 +8,7 @@ import com.nisovin.shopkeepers.api.shopkeeper.TradingRecipe;
 import com.nisovin.shopkeepers.api.shopkeeper.offers.PriceOffer;
 import com.nisovin.shopkeepers.api.util.UnmodifiableItemStack;
 import com.nisovin.shopkeepers.currency.CurrencyInventoryUtils;
+import com.nisovin.shopkeepers.itemsadder.ItemsAdderIntegration;
 import com.nisovin.shopkeepers.lang.Messages;
 import com.nisovin.shopkeepers.shopkeeper.player.PlayerShopTaxUtils;
 import com.nisovin.shopkeepers.shopkeeper.player.PlayerShopTradingView;
@@ -84,7 +85,11 @@ public class SellingPlayerShopTradingView extends PlayerShopTradingView {
 		// "result" item during the trade event. The trading player will still receive the modified
 		// result item.
 		UnmodifiableItemStack soldItem = tradingRecipe.getResultItem();
-		if (InventoryUtils.removeItems(this.stockContents, soldItem) != 0) {
+		if (InventoryUtils.removeItems(
+				this.stockContents,
+				ItemsAdderIntegration.stockPredicate(soldItem),
+				soldItem.getAmount()
+		) != 0) {
 			TextUtils.sendMessage(tradingPlayer, Messages.cannotTradeInsufficientStock);
 			this.debugPreventedTrade("The shop's containers do not contain the required items.");
 			return false;
