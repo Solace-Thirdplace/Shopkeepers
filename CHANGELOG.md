@@ -6,6 +6,9 @@ Date format: (YYYY-MM-DD)
 
 * Fix: A potential item duplication issue with player shops introduced in v2.28.0, caused by not properly resetting the trading state on failed trade attempts.
   * Also added a safeguard that aborts subsequent trade attempts if the previous trade was not properly ended.
+* Fix: A potential currency item duplication issue in player shops when the shop owner edits the offers while another player is currently trading.
+  * Trades are now aborted if the trading recipe price no longer matches the price of the corresponding offer.
+  * We also immediately close any open trading views now when the trade offers have been edited, so trading players don't see outdated trades.
 * Add support for multiple shop containers: Shop owners can now link additional containers to their player shops.
   * Config:
     * Add `max-containers-per-player-shop` (default: `9`). Set it to `1` to keep the previous single-container behavior.
