@@ -27,6 +27,7 @@ import com.nisovin.shopkeepers.util.data.property.BasicProperty;
 import com.nisovin.shopkeepers.util.data.property.Property;
 import com.nisovin.shopkeepers.util.data.serialization.InvalidDataException;
 import com.nisovin.shopkeepers.util.inventory.InventoryUtils;
+import com.nisovin.shopkeepers.util.inventory.ItemIdentityTags;
 import com.nisovin.shopkeepers.util.java.CollectionUtils;
 import com.nisovin.shopkeepers.util.java.Validate;
 import com.nisovin.shopkeepers.util.logging.Log;
@@ -180,6 +181,17 @@ public class SKTradingPlayerShopkeeper
 		for (TradeOffer offer : this.getOffers()) {
 			if (offer.areItemsEqual(tradingRecipe)) {
 				return offer;
+			}
+		}
+
+		// The required items of the trading recipe might lack the offer's identity tags:
+		if (ItemIdentityTags.isIgnored()) {
+			for (TradeOffer offer : this.getOffers()) {
+				if (ItemIdentityTags.isEqual(offer.getResultItem(), tradingRecipe.getResultItem())
+						&& ItemIdentityTags.isEqual(offer.getItem1(), tradingRecipe.getItem1())
+						&& ItemIdentityTags.isEqual(offer.getItem2(), tradingRecipe.getItem2())) {
+					return offer;
+				}
 			}
 		}
 		return null;

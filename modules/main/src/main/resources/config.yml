@@ -167,6 +167,23 @@ items-adder-item-update-exclusions: []
 # comparison.
 items-adder-match-stock-by-id: true
 
+# If enabled, item comparisons ignore the per-item identity tags that
+# ThirdPlaceMcTweaks writes on unstackable items: 'thirdplacetweaks:iid',
+# 'thirdplacetweaks:origin', 'thirdplacetweaks:ts', and 'thirdplacetweaks:by'.
+# Each physical item carries its own tags. With this setting disabled, two
+# otherwise identical items do not match. This applies to the stock of player
+# shops, the items that trading players offer, and the editor's detection of
+# container items without an offer.
+# If enabled, Minecraft's trading menu does not check the custom data of
+# unstackable items, because it compares custom data as a whole. Shopkeepers
+# checks it when the player takes the result item.
+# This setting only affects item comparisons. Regardless of it, a player who
+# buys from a player shop receives the physical item from the shop's
+# container, with its own tags, and admin shops hand out copies without these
+# tags. Items that a player hands over keep their tags when they go into the
+# shop's container.
+ignore-item-identity-tags: true
+
 # If enabled, players are only able to place shopkeepers in places where no
 # other plugin denies them to interact with blocks.
 check-spawn-location-interaction-result: false
