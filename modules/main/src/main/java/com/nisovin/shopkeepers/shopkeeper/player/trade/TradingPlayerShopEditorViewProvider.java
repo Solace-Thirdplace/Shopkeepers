@@ -17,6 +17,7 @@ import com.nisovin.shopkeepers.ui.editor.DefaultTradingRecipesAdapter;
 import com.nisovin.shopkeepers.ui.lib.UIState;
 import com.nisovin.shopkeepers.ui.lib.View;
 import com.nisovin.shopkeepers.util.inventory.InventoryUtils;
+import com.nisovin.shopkeepers.util.inventory.ItemIdentityTags;
 import com.nisovin.shopkeepers.util.inventory.ItemUtils;
 
 public class TradingPlayerShopEditorViewProvider extends PlayerShopEditorViewProvider {
@@ -65,7 +66,11 @@ public class TradingPlayerShopEditorViewProvider extends PlayerShopEditorViewPro
 					continue;
 				}
 
-				if (InventoryUtils.contains(newRecipes, containerItem)) {
+				if (InventoryUtils.containsAtLeast(
+						newRecipes,
+						ItemIdentityTags.similarItems(containerItem),
+						1
+				)) {
 					// We already added a new recipe for this item:
 					continue;
 				}

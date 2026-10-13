@@ -29,6 +29,7 @@ import com.nisovin.shopkeepers.util.data.property.BasicProperty;
 import com.nisovin.shopkeepers.util.data.property.Property;
 import com.nisovin.shopkeepers.util.data.serialization.InvalidDataException;
 import com.nisovin.shopkeepers.util.inventory.InventoryUtils;
+import com.nisovin.shopkeepers.util.inventory.ItemIdentityTags;
 import com.nisovin.shopkeepers.util.inventory.ItemUtils;
 import com.nisovin.shopkeepers.util.java.CollectionUtils;
 import com.nisovin.shopkeepers.util.java.Validate;
@@ -200,7 +201,7 @@ public class SKSellingPlayerShopkeeper
 		Iterator<? extends PriceOffer> iterator = offers.iterator();
 		while (iterator.hasNext()) {
 			PriceOffer offer = iterator.next();
-			if (offer.getItem().isSimilar(tradedItem)) {
+			if (ItemIdentityTags.isSimilar(offer.getItem(), tradedItem)) {
 				iterator.remove();
 				this.markDirty();
 				break;

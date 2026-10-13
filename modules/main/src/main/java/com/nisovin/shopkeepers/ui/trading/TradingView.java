@@ -26,6 +26,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 import com.nisovin.shopkeepers.api.events.ShopkeeperTradeCompletedEvent;
 import com.nisovin.shopkeepers.api.events.ShopkeeperTradeEvent;
+import com.nisovin.shopkeepers.api.internal.util.Unsafe;
 import com.nisovin.shopkeepers.api.shopkeeper.Shopkeeper;
 import com.nisovin.shopkeepers.api.shopkeeper.TradingRecipe;
 import com.nisovin.shopkeepers.api.trading.TradeEffect;
@@ -42,6 +43,7 @@ import com.nisovin.shopkeepers.util.bukkit.ConfigUtils;
 import com.nisovin.shopkeepers.util.bukkit.MerchantUtils;
 import com.nisovin.shopkeepers.util.bukkit.TextUtils;
 import com.nisovin.shopkeepers.util.inventory.InventoryUtils;
+import com.nisovin.shopkeepers.util.inventory.ItemIdentityTags;
 import com.nisovin.shopkeepers.util.inventory.ItemUtils;
 import com.nisovin.shopkeepers.util.java.Lazy;
 import com.nisovin.shopkeepers.util.logging.Log;
@@ -56,6 +58,11 @@ public class TradingView extends View {
 	protected static final int BUY_ITEM_1_SLOT_ID = 0;
 	protected static final int BUY_ITEM_2_SLOT_ID = 1;
 	protected static final int RESULT_ITEM_SLOT_ID = 2;
+
+	// The trading recipes that the merchant recipes were created from, paired with the trading
+	// recipes that Minecraft reports for these merchant recipes:
+	private final List<TradingRecipe> sourceRecipes = new ArrayList<>();
+	private final List<TradingRecipe> merchantSideRecipes = new ArrayList<>();
 
 	public TradingView(TradingViewProvider provider, Player player, UIState uiState) {
 		super(provider, player, uiState);
@@ -116,8 +123,59 @@ public class TradingView extends View {
 	protected void setupMerchantRecipes(Merchant merchant, List<? extends TradingRecipe> recipes) {
 		// Create list of merchant recipes:
 		List<MerchantRecipe> merchantRecipes = this.createMerchantRecipes(recipes);
+		this.setSourceRecipes(recipes, merchantRecipes);
 		// Set merchant's recipes:
 		merchant.setRecipes(merchantRecipes);
+	}
+
+	private void setSourceRecipes(
+			List<? extends TradingRecipe> recipes,
+			List<? extends MerchantRecipe> merchantRecipes
+	) {
+		assert recipes.size() <= merchantRecipes.size();
+		sourceRecipes.clear();
+		merchantSideRecipes.clear();
+		for (int i = 0; i < recipes.size(); i++) {
+			sourceRecipes.add(recipes.get(i));
+			merchantSideRecipes.add(MerchantUtils.createTradingRecipe(merchantRecipes.get(i)));
+		}
+	}
+
+	/**
+	 * Gets the trading recipes whose merchant recipe Minecraft might have used for the given
+	 * active trading recipe, ordered by how likely they are.
+	 * <p>
+	 * The merchant recipes can lack data of the required items of their trading recipes (see
+	 * {@link #createMerchantRecipe(TradingRecipe)}). The returned trading recipes include that data
+	 * again.
+	 * 
+	 * @param activeRecipe
+	 *            the active trading recipe as reported by Minecraft, not <code>null</code>
+	 * @return the candidate trading recipes, not <code>null</code>
+	 */
+	private List<TradingRecipe> getSourceRecipeCandidates(TradingRecipe activeRecipe) {
+		if (sourceRecipes.isEmpty()) return Collections.singletonList(activeRecipe);
+
+		List<TradingRecipe> candidates = new ArrayList<>();
+		for (int i = 0; i < sourceRecipes.size(); i++) {
+			TradingRecipe sourceRecipe = sourceRecipes.get(i);
+			if (sourceRecipe.isOutOfStock()) continue;
+			if (merchantSideRecipes.get(i).areItemsEqual(activeRecipe)) {
+				candidates.add(sourceRecipe);
+			}
+		}
+
+		// The merchant recipes do not alter the result items. In case Minecraft reports the
+		// required items slightly differently, also consider the other recipes with the same
+		// result item:
+		for (TradingRecipe sourceRecipe : sourceRecipes) {
+			if (sourceRecipe.isOutOfStock()) continue;
+			if (candidates.contains(sourceRecipe)) continue;
+			if (sourceRecipe.getResultItem().equals(activeRecipe.getResultItem())) {
+				candidates.add(sourceRecipe);
+			}
+		}
+		return candidates;
 	}
 
 	protected List<MerchantRecipe> createMerchantRecipes(List<? extends TradingRecipe> recipes) {
@@ -129,7 +187,19 @@ public class TradingView extends View {
 	}
 
 	protected MerchantRecipe createMerchantRecipe(TradingRecipe recipe) {
-		return MerchantUtils.createMerchantRecipe(recipe); // Default
+		MerchantRecipe merchantRecipe = MerchantUtils.createMerchantRecipe(recipe); // Default
+		if (ItemIdentityTags.isIgnored()) {
+			// Minecraft only accepts offered items that carry the same identity tags as the
+			// required items. The trade handling compares the offered items with the full required
+			// items again (see #getSourceRecipeCandidates).
+			List<ItemStack> ingredients = new ArrayList<>();
+			for (ItemStack ingredient : merchantRecipe.getIngredients()) {
+				ItemStack costItem = ItemIdentityTags.toMerchantCostItem(ingredient);
+				ingredients.add(Unsafe.assertNonNull(costItem));
+			}
+			merchantRecipe.setIngredients(ingredients);
+		}
+		return merchantRecipe;
 	}
 
 	protected String getInventoryTitle() {
@@ -159,6 +229,7 @@ public class TradingView extends View {
 		Shopkeeper shopkeeper = this.getShopkeeperNonNull();
 		List<? extends TradingRecipe> recipes = shopkeeper.getTradingRecipes(player);
 		List<MerchantRecipe> newMerchantRecipes = this.createMerchantRecipes(recipes);
+		this.setSourceRecipes(recipes, newMerchantRecipes);
 		if (MerchantUtils.MERCHANT_RECIPES_IGNORE_USES_EXCEPT_BLOCKED.equals(
 				oldMerchantRecipes,
 				newMerchantRecipes
@@ -660,22 +731,40 @@ public class TradingView extends View {
 			return null;
 		}
 
+		// Minecraft checks both combinations (item1, item2) and (item2, item1) when determining if
+		// a trading recipe matches, so we need to determine the used item order for the currently
+		// active trading recipe:
+		// The merchant recipe can lack data of the required items. We therefore match the offered
+		// items against the full required items of the trading recipe it was created from.
+		boolean swappedItemOrder = false;
+		boolean matched = false;
+		for (TradingRecipe sourceRecipe : this.getSourceRecipeCandidates(tradingRecipe)) {
+			UnmodifiableItemStack sourceItem1 = sourceRecipe.getItem1();
+			UnmodifiableItemStack sourceItem2 = sourceRecipe.getItem2();
+			if (this.matches(offeredItem1, offeredItem2, sourceItem1, sourceItem2)) {
+				// Order is as-is.
+			} else if (this.matches(offeredItem1, offeredItem2, sourceItem2, sourceItem1)) {
+				// Swapped order:
+				swappedItemOrder = true;
+			} else {
+				continue;
+			}
+
+			tradingRecipe = sourceRecipe;
+			matched = true;
+			break;
+		}
+
 		UnmodifiableItemStack requiredItem1 = tradingRecipe.getItem1();
 		UnmodifiableItemStack requiredItem2 = tradingRecipe.getItem2();
 		assert !ItemUtils.isEmpty(requiredItem1);
 
-		// Minecraft checks both combinations (item1, item2) and (item2, item1) when determining if
-		// a trading recipe matches, so we need to determine the used item order for the currently
-		// active trading recipe:
-		boolean swappedItemOrder = false;
-		if (this.matches(offeredItem1, offeredItem2, requiredItem1, requiredItem2)) {
-			// Order is as-is.
-		} else if (this.matches(offeredItem1, offeredItem2, requiredItem2, requiredItem1)) {
-			// Swapped order:
-			swappedItemOrder = true;
-			ItemStack temp = offeredItem1;
-			offeredItem1 = offeredItem2;
-			offeredItem2 = temp;
+		if (matched) {
+			if (swappedItemOrder) {
+				ItemStack temp = offeredItem1;
+				offeredItem1 = offeredItem2;
+				offeredItem2 = temp;
+			}
 		} else {
 			// The used item order could not be determined.
 			// This should not happen. But this might for example occur if the
@@ -695,10 +784,10 @@ public class TradingView extends View {
 		if (Settings.useStrictItemComparison) {
 			// Verify that the recipe items are perfectly matching (they can still be swapped
 			// though):
-			boolean item1Similar = ItemUtils.isSimilar(requiredItem1, offeredItem1);
+			boolean item1Similar = ItemIdentityTags.isSimilar(requiredItem1, offeredItem1);
 			ItemStack offeredItem2Final = offeredItem2;
 			Lazy<Boolean> item2Similar = new Lazy<>(
-					() -> ItemUtils.isSimilar(requiredItem2, offeredItem2Final)
+					() -> ItemIdentityTags.isSimilar(requiredItem2, offeredItem2Final)
 			);
 			if (!item1Similar || !item2Similar.get()) {
 				if (!slientStrictItemComparison) {
@@ -759,10 +848,12 @@ public class TradingView extends View {
 		int offeredItem2Amount = ItemUtils.getItemStackAmount(offeredItem2);
 		int requiredItem1Amount = ItemUtils.getItemStackAmount(requiredItem1);
 		int requiredItem2Amount = ItemUtils.getItemStackAmount(requiredItem2);
-		return (offeredItem1Amount >= requiredItem1Amount
-				&& offeredItem2Amount >= requiredItem2Amount
-				&& Compat.getProvider().matches(offeredItem1, requiredItem1)
-				&& Compat.getProvider().matches(offeredItem2, requiredItem2));
+		if (offeredItem1Amount < requiredItem1Amount || offeredItem2Amount < requiredItem2Amount) {
+			return false;
+		}
+
+		return ItemIdentityTags.matchesRequiredItem(offeredItem1, requiredItem1)
+				&& ItemIdentityTags.matchesRequiredItem(offeredItem2, requiredItem2);
 	}
 
 	protected final void debugPreventedTrade(String reason) {
