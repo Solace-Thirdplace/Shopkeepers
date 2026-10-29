@@ -146,9 +146,42 @@ class ItemsAdderListener implements Listener {
 		freshItem = freshItem.clone();
 		freshItem.setAmount(item.getAmount());
 		copyMissingCustomTags(itemCopy, freshItem);
-		if (item.equals(freshItem)) return null; // The item is already up-to-date
+		if (isUpToDate(itemCopy, freshItem)) return null;
 
 		return freshItem;
+	}
+
+	/**
+	 * Checks whether the given stored item already matches the given freshly created item.
+	 * <p>
+	 * ItemsAdder generates fresh ids for an item's attribute modifiers whenever it (re)loads its
+	 * item configurations. A plain equality check would therefore consider every stored item that
+	 * carries an attribute modifier to be outdated on every server start, and rewrite it to a copy
+	 * with identical content. Differences that only involve the modifier ids are ignored here.
+	 *
+	 * @param storedItem
+	 *            the stored item, not <code>null</code>
+	 * @param freshItem
+	 *            the freshly created item, not <code>null</code>
+	 * @return <code>true</code> if the stored item does not need to be updated
+	 */
+	private static boolean isUpToDate(ItemStack storedItem, ItemStack freshItem) {
+		if (storedItem.equals(freshItem)) return true;
+
+		@Nullable ItemMeta storedMeta = storedItem.getItemMeta();
+		if (storedMeta == null) return false;
+
+		ItemStack freshItemCopy = freshItem.clone();
+		@Nullable ItemMeta freshMeta = freshItemCopy.getItemMeta();
+		if (freshMeta == null) return false;
+
+		if (!ItemsAdderStockMatching.copyAttributeModifierIds(storedMeta, freshMeta)) {
+			// The attribute modifiers differ in more than just their ids:
+			return false;
+		}
+
+		freshItemCopy.setItemMeta(freshMeta);
+		return storedItem.equals(freshItemCopy);
 	}
 
 	/**
@@ -158,7 +191,7 @@ class ItemsAdderListener implements Listener {
 	 *            the item's ItemsAdder namespaced id, not <code>null</code>
 	 * @return <code>true</code> if the item is excluded
 	 */
-	private static boolean isExcluded(String namespacedId) {
+	static boolean isExcluded(String namespacedId) {
 		for (String excludedId : Settings.itemsAdderItemUpdateExclusions) {
 			if (excludedId.equalsIgnoreCase(namespacedId)) return true;
 		}

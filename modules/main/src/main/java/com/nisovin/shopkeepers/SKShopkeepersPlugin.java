@@ -88,6 +88,7 @@ public class SKShopkeepersPlugin extends JavaPlugin implements InternalShopkeepe
 					"com.nisovin.shopkeepers.dependencies.worldguard.WorldGuardDependency$Internal",
 					"com.nisovin.shopkeepers.dependencies.citizens.CitizensUtils$Internal",
 					"com.nisovin.shopkeepers.itemsadder.ItemsAdderListener",
+					"com.nisovin.shopkeepers.itemsadder.ItemsAdderItemMatcher",
 					"com.nisovin.shopkeepers.shopobjects.citizens.CitizensShopkeeperTrait",
 					"com.nisovin.shopkeepers.spigot.text.SpigotText$Internal"
 			))

@@ -12,6 +12,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import com.nisovin.shopkeepers.api.shopkeeper.TradingRecipe;
 import com.nisovin.shopkeepers.api.shopkeeper.offers.PriceOffer;
 import com.nisovin.shopkeepers.api.shopkeeper.player.sell.SellingPlayerShopkeeper;
+import com.nisovin.shopkeepers.itemsadder.ItemsAdderIntegration;
 import com.nisovin.shopkeepers.api.ui.DefaultUITypes;
 import com.nisovin.shopkeepers.api.util.UnmodifiableItemStack;
 import com.nisovin.shopkeepers.shopkeeper.AbstractShopkeeper;
@@ -118,7 +119,7 @@ public class SKSellingPlayerShopkeeper
 			UnmodifiableItemStack tradedItem = offer.getItem();
 			boolean outOfStock = !InventoryUtils.containsAtLeast(
 					stockContainerContents,
-					tradedItem,
+					ItemsAdderIntegration.stockPredicate(tradedItem),
 					tradedItem.getAmount()
 			);
 			TradingRecipe recipe = this.createSellingRecipe(
@@ -180,7 +181,7 @@ public class SKSellingPlayerShopkeeper
 	public @Nullable PriceOffer getOffer(@ReadOnly ItemStack tradedItem) {
 		Validate.notNull(tradedItem, "tradedItem is null");
 		for (PriceOffer offer : this.getOffers()) {
-			if (offer.getItem().isSimilar(tradedItem)) {
+			if (ItemsAdderIntegration.matchesStock(offer.getItem(), tradedItem)) {
 				return offer;
 			}
 		}
