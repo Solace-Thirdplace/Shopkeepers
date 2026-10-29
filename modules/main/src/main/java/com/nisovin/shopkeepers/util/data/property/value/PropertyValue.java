@@ -255,8 +255,13 @@ public class PropertyValue<T> {
 		}
 
 		this.onValueChanged(oldValue, value, updateFlags);
-		if (valueChangeListener != null) {
-			valueChangeListener.onValueChanged(this, oldValue, value, updateFlags);
+		ValueChangeListener<T> listener = valueChangeListener;
+		if (listener != null) {
+			AbstractPropertyValuesHolder holder = Unsafe.assertNonNull(this.holder);
+			holder.runValueChangeListener(
+					this,
+					() -> listener.onValueChanged(this, oldValue, value, updateFlags)
+			);
 		}
 	}
 

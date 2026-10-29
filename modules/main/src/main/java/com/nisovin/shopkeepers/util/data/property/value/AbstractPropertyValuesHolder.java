@@ -63,4 +63,20 @@ public abstract class AbstractPropertyValuesHolder implements PropertyValuesHold
 	 * Marks this holder as 'dirty'.
 	 */
 	public abstract void markDirty();
+
+	/**
+	 * Runs the {@link ValueChangeListener} of one of this holder's {@link PropertyValue}s after its
+	 * value has changed.
+	 * <p>
+	 * By default, the listener is run right away. Subclasses can run it later instead, for example
+	 * on the thread that owns the world object that the listener updates.
+	 *
+	 * @param propertyValue
+	 *            the property value whose value has changed, not <code>null</code>
+	 * @param listener
+	 *            runs the value change listener, not <code>null</code>
+	 */
+	protected void runValueChangeListener(PropertyValue<?> propertyValue, Runnable listener) {
+		listener.run();
+	}
 }

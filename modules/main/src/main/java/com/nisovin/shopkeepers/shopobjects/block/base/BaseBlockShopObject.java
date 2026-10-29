@@ -17,6 +17,7 @@ import com.nisovin.shopkeepers.shopkeeper.AbstractShopkeeper;
 import com.nisovin.shopkeepers.shopobjects.ShopkeeperMetadata;
 import com.nisovin.shopkeepers.shopobjects.block.AbstractBlockShopObject;
 import com.nisovin.shopkeepers.util.bukkit.SchedulerUtils;
+import com.nisovin.shopkeepers.util.data.property.value.PropertyValue;
 import com.nisovin.shopkeepers.util.java.CyclicCounter;
 import com.nisovin.shopkeepers.util.java.RateLimiter;
 import com.nisovin.shopkeepers.util.logging.Log;
@@ -71,6 +72,40 @@ public abstract class BaseBlockShopObject extends AbstractBlockShopObject {
 	@Override
 	public @Nullable Block getBlock() {
 		return block;
+	}
+
+	/**
+	 * Runs the given task, which updates the spawned block, on the thread that owns the block.
+	 * <p>
+	 * If no block is spawned, or the current thread owns the block, the task is run right away.
+	 * Otherwise (Folia: e.g. the shop is edited remotely), the task is run during the next tick of
+	 * the block's region. It is skipped if the block has been despawned or replaced in the
+	 * meantime: A newly spawned block is already set up with the shop object's current state.
+	 * 
+	 * @param task
+	 *            the task, not <code>null</code>
+	 */
+	protected final void runOnBlockThread(Runnable task) {
+		Block block = this.block;
+		if (block == null) {
+			task.run();
+			return;
+		}
+
+		SchedulerUtils.runInRegionOrOmit(
+				SKShopkeepersPlugin.getInstance(),
+				block.getLocation(),
+				() -> {
+					if (this.block != block) return; // Despawned or replaced
+					task.run();
+				}
+		);
+	}
+
+	@Override
+	protected void runPropertyChangeListener(PropertyValue<?> propertyValue, Runnable listener) {
+		// The listeners apply the new property values to the block:
+		this.runOnBlockThread(listener);
 	}
 
 	/**
@@ -268,7 +303,7 @@ public abstract class BaseBlockShopObject extends AbstractBlockShopObject {
 		// Blocks do not have names. However, this method is usually called when the shopkeeper is
 		// renamed, and some blocks (e.g. signs) may have a way to visualize the shopkeeper's name.
 		// So let's update the block here.
-		this.updateBlock();
+		this.runOnBlockThread(this::updateBlock);
 	}
 
 	@Override
@@ -283,6 +318,6 @@ public abstract class BaseBlockShopObject extends AbstractBlockShopObject {
 	@Override
 	public void onShopOwnerChanged() {
 		// Update the block (e.g. sign contents):
-		this.updateBlock();
+		this.runOnBlockThread(this::updateBlock);
 	}
 }

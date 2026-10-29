@@ -12,6 +12,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import com.nisovin.shopkeepers.SKShopkeepersPlugin;
 import com.nisovin.shopkeepers.api.events.ShopkeeperAddedEvent;
 import com.nisovin.shopkeepers.api.events.UpdateItemEvent;
+import com.nisovin.shopkeepers.api.internal.util.Unsafe;
 import com.nisovin.shopkeepers.api.shopkeeper.ShopCreationData;
 import com.nisovin.shopkeepers.api.shopkeeper.Shopkeeper;
 import com.nisovin.shopkeepers.api.shopkeeper.ShopkeeperRegistry;
@@ -129,12 +130,49 @@ public abstract class AbstractShopObject implements ShopObject {
 	) {
 		assert shopkeeper != null;
 		this.shopkeeper = shopkeeper;
-		this.properties = new ShopkeeperPropertyValuesHolder(shopkeeper);
+		this.properties = new ShopObjectPropertyValuesHolder(Unsafe.initialized(this));
 		this.lastSpawnFailedProperty = new PropertyValue<>(SPAWN_FAILED).build(properties);
 	}
 
 	@Override
 	public abstract AbstractShopObjectType<?> getType();
+
+	/**
+	 * The {@link PropertyValuesHolder} of a shop object: Lets the shop object decide how the value
+	 * change listeners of its properties are run.
+	 */
+	private static final class ShopObjectPropertyValuesHolder
+			extends ShopkeeperPropertyValuesHolder {
+
+		private final AbstractShopObject shopObject;
+
+		ShopObjectPropertyValuesHolder(AbstractShopObject shopObject) {
+			super(shopObject.shopkeeper);
+			this.shopObject = shopObject;
+		}
+
+		@Override
+		protected void runValueChangeListener(PropertyValue<?> propertyValue, Runnable listener) {
+			shopObject.runPropertyChangeListener(propertyValue, listener);
+		}
+	}
+
+	/**
+	 * Runs the value change listener of one of this shop object's properties.
+	 * <p>
+	 * The value change listeners usually apply the new property value to the spawned world object
+	 * (entity or block). By default, the listener is run right away. Shop objects whose world object
+	 * can only be modified from a specific thread (Folia) can run the listener on that thread
+	 * instead.
+	 * 
+	 * @param propertyValue
+	 *            the property value whose value has changed, not <code>null</code>
+	 * @param listener
+	 *            runs the value change listener, not <code>null</code>
+	 */
+	protected void runPropertyChangeListener(PropertyValue<?> propertyValue, Runnable listener) {
+		listener.run();
+	}
 
 	/**
 	 * Gets the shopkeeper associated with this shop object.

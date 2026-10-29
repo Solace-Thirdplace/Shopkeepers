@@ -87,9 +87,28 @@ public class ForcingEntityTeleporter implements Listener {
 	 * @return <code>false</code> if the teleport failed right away
 	 */
 	public boolean teleport(Entity entity, Location toLocation) {
+		CompletableFuture<Boolean> result = this.teleportWithResult(entity, toLocation);
+		return !result.isDone() || Boolean.TRUE.equals(result.getNow(Boolean.FALSE));
+	}
+
+	/**
+	 * Teleports the given entity to the given location, like {@link #teleport(Entity, Location)},
+	 * and provides the result of the teleport.
+	 * <p>
+	 * The returned future is already completed if the teleport happened synchronously. On servers
+	 * that do not support synchronous teleports (Folia), it completes once the asynchronous
+	 * teleport completes.
+	 * 
+	 * @param entity
+	 *            the entity to teleport
+	 * @param toLocation
+	 *            the destination location
+	 * @return the result of the teleport
+	 */
+	public CompletableFuture<Boolean> teleportWithResult(Entity entity, Location toLocation) {
 		if (!syncTeleportUnsupported) {
 			try {
-				return this.teleportSync(entity, toLocation);
+				return CompletableFuture.completedFuture(this.teleportSync(entity, toLocation));
 			} catch (UnsupportedOperationException e) {
 				// Folia: Synchronous teleports are not supported.
 				syncTeleportUnsupported = true;
@@ -106,7 +125,7 @@ public class ForcingEntityTeleporter implements Listener {
 			// Folia: Another teleport of this entity is still in progress.
 			Log.debug(() -> "Failed to teleport entity " + entity.getUniqueId() + ": "
 					+ e.getMessage());
-			return false;
+			return CompletableFuture.completedFuture(false);
 		} finally {
 			// This reset is required if the teleport did not actually trigger an event (e.g. on
 			// Spigot instead of Paper servers), or if it completes later:
@@ -123,7 +142,7 @@ public class ForcingEntityTeleporter implements Listener {
 			entity.setCustomNameVisible(customNameVisible);
 		});
 
-		return !result.isDone() || Boolean.TRUE.equals(result.getNow(Boolean.FALSE));
+		return result;
 	}
 
 	private boolean teleportSync(Entity entity, Location toLocation) {
