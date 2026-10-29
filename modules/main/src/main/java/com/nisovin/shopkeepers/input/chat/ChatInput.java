@@ -1,6 +1,5 @@
 package com.nisovin.shopkeepers.input.chat;
 
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -12,6 +11,7 @@ import org.bukkit.plugin.Plugin;
 import com.nisovin.shopkeepers.input.InputManager;
 import com.nisovin.shopkeepers.input.InputRequest;
 import com.nisovin.shopkeepers.util.bukkit.EventUtils;
+import com.nisovin.shopkeepers.util.bukkit.SchedulerUtils;
 
 /**
  * Manages requests for chat input from players.
@@ -26,7 +26,7 @@ public class ChatInput extends InputManager<String> implements Listener {
 	@Override
 	public void onEnable() {
 		super.onEnable();
-		Bukkit.getPluginManager().registerEvents(this, plugin);
+		EventUtils.registerEvents(this, plugin);
 		// Ensure that our chat event handler is always executed first:
 		// Otherwise, we might run into conflicts with other chat plugins that also use the lowest
 		// event priority and that might modify the chat message before we were able to process it
@@ -59,7 +59,7 @@ public class ChatInput extends InputManager<String> implements Listener {
 		// Get the message:
 		String message = event.getMessage();
 
-		// Process the request on the server's main thread:
-		Bukkit.getScheduler().runTask(plugin, () -> request.onInput(message));
+		// Process the request on the player's thread:
+		SchedulerUtils.runEntityTaskOrOmit(plugin, player, () -> request.onInput(message));
 	}
 }

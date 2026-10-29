@@ -1,6 +1,5 @@
 package com.nisovin.shopkeepers.trading.commandtrading;
 
-import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
@@ -10,6 +9,7 @@ import com.nisovin.shopkeepers.api.ShopkeepersPlugin;
 import com.nisovin.shopkeepers.api.events.ShopkeeperTradeEvent;
 import com.nisovin.shopkeepers.api.internal.util.Unsafe;
 import com.nisovin.shopkeepers.api.util.UnmodifiableItemStack;
+import com.nisovin.shopkeepers.util.bukkit.EventUtils;
 import com.nisovin.shopkeepers.util.java.Validate;
 import com.nisovin.shopkeepers.util.logging.Log;
 
@@ -23,7 +23,7 @@ public class CommandTrading implements Listener {
 	}
 
 	public void onEnable() {
-		Bukkit.getPluginManager().registerEvents(this, plugin);
+		EventUtils.registerEvents(this, plugin);
 	}
 
 	public void onDisable() {

@@ -25,6 +25,9 @@ import com.nisovin.shopkeepers.shopkeeper.registry.SKShopkeeperRegistry;
 import com.nisovin.shopkeepers.shopkeeper.spawning.ShopkeeperSpawnState.State;
 import com.nisovin.shopkeepers.shopobjects.AbstractShopObject;
 import com.nisovin.shopkeepers.shopobjects.AbstractShopObjectType;
+import com.nisovin.shopkeepers.util.bukkit.EventUtils;
+import com.nisovin.shopkeepers.util.bukkit.SchedulerUtils;
+import com.nisovin.shopkeepers.util.bukkit.TaskHandle;
 import com.nisovin.shopkeepers.util.bukkit.TextUtils;
 import com.nisovin.shopkeepers.util.java.Validate;
 import com.nisovin.shopkeepers.util.logging.Log;
@@ -94,9 +97,9 @@ public class ShopkeeperSpawner {
 		// Start the spawn queue:
 		spawnQueue.start();
 
-		Bukkit.getPluginManager().registerEvents(listener, plugin);
+		EventUtils.registerEvents(listener, plugin);
 
-		Bukkit.getScheduler().runTaskLater(plugin, new CheckUnspawnableShopkeepersTask(), 5L);
+		SchedulerUtils.runTaskLaterOrOmit(plugin, new CheckUnspawnableShopkeepersTask(), 5L);
 	}
 
 	private class CheckUnspawnableShopkeepersTask implements Runnable {
@@ -308,6 +311,12 @@ public class ShopkeeperSpawner {
 		}
 
 		if (spawnImmediately) {
+			if (!isOwnedByCurrentThread(shopkeeper)) {
+				// Spawn the shopkeeper during the next tick of the thread that owns its chunk:
+				this.spawnInOwningRegion(shopkeeper);
+				return SpawnResult.QUEUED;
+			}
+
 			// This also updates the shopkeeper's spawn state if necessary (remove from spawn queue,
 			// etc.):
 			if (this.doSpawnShopkeeper(shopkeeper)) {
@@ -381,12 +390,62 @@ public class ShopkeeperSpawner {
 		this.spawnShopkeeper(shopkeeper, true);
 	}
 
-	// Returns true on success.
+	// Checks if the current thread owns the shopkeeper's chunk and can therefore spawn it.
+	private static boolean isOwnedByCurrentThread(AbstractShopkeeper shopkeeper) {
+		ChunkCoords chunkCoords = shopkeeper.getLastChunkCoords();
+		if (chunkCoords == null) return true; // Virtual shopkeeper
+		World world = chunkCoords.getWorld();
+		if (world == null) return true; // Spawning fails anyway
+		return SchedulerUtils.isOwnedByCurrentRegion(
+				world,
+				chunkCoords.getChunkX(),
+				chunkCoords.getChunkZ()
+		);
+	}
+
+	// Hands the spawning of the shopkeeper over to the thread that owns its chunk.
+	private void spawnInOwningRegion(AbstractShopkeeper shopkeeper) {
+		assert shopkeeper != null;
+		ChunkCoords chunkCoords = Unsafe.assertNonNull(shopkeeper.getLastChunkCoords());
+		World world = Unsafe.assertNonNull(chunkCoords.getWorld());
+
+		this.updateSpawnState(shopkeeper, State.REGION_PENDING);
+		TaskHandle task = SchedulerUtils.runRegionTaskLaterOrOmit(
+				plugin,
+				world,
+				chunkCoords.getChunkX(),
+				chunkCoords.getChunkZ(),
+				() -> {
+					// Skip if the spawn request has been superseded in the meantime, e.g. by a
+					// despawn:
+					if (getSpawnState(shopkeeper) != State.REGION_PENDING) return;
+					if (!shopkeeper.isValid() || !shopkeeper.isActive()) {
+						this.updateSpawnState(shopkeeper, State.DESPAWNED);
+						return;
+					}
+
+					this.doSpawnShopkeeper(shopkeeper);
+				},
+				0L
+		);
+		if (task == null) {
+			// The plugin is being disabled:
+			this.updateSpawnState(shopkeeper, State.DESPAWNED);
+		}
+	}
+
+	// Returns true on success, or if the spawning has been handed over to another thread.
 	private boolean doSpawnShopkeeper(AbstractShopkeeper shopkeeper) {
 		assert shopkeeper != null;
 		AbstractShopObject shopObject = shopkeeper.getShopObject();
 		AbstractShopObjectType<?> shopObjectType = shopObject.getType();
 		assert shopObjectType.mustBeSpawned();
+
+		if (!isOwnedByCurrentThread(shopkeeper)) {
+			// E.g. when processing the spawn queue on Folia's global region thread:
+			this.spawnInOwningRegion(shopkeeper);
+			return true;
+		}
 
 		// Reset the shopkeeper's spawn state:
 		this.updateSpawnState(shopkeeper, State.DESPAWNED);

@@ -9,16 +9,20 @@ import org.bukkit.inventory.ItemStack;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import com.nisovin.shopkeepers.api.ShopkeepersPlugin;
+import com.nisovin.shopkeepers.api.events.ShopkeeperTradeEvent;
 import com.nisovin.shopkeepers.api.internal.util.Unsafe;
 import com.nisovin.shopkeepers.api.shopkeeper.container.ShopContainer;
+import com.nisovin.shopkeepers.api.util.UnmodifiableItemStack;
 import com.nisovin.shopkeepers.config.Settings;
 import com.nisovin.shopkeepers.lang.Messages;
+import com.nisovin.shopkeepers.nexo.NexoIntegration;
 import com.nisovin.shopkeepers.ui.lib.UIState;
 import com.nisovin.shopkeepers.ui.trading.Trade;
 import com.nisovin.shopkeepers.ui.trading.TradingContext;
 import com.nisovin.shopkeepers.ui.trading.TradingView;
 import com.nisovin.shopkeepers.util.bukkit.PermissionUtils;
 import com.nisovin.shopkeepers.util.bukkit.TextUtils;
+import com.nisovin.shopkeepers.util.inventory.ItemIdentityTags;
 import com.nisovin.shopkeepers.util.logging.Log;
 
 public class PlayerShopTradingView extends TradingView {
@@ -125,6 +129,32 @@ public class PlayerShopTradingView extends TradingView {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Lets the trading player receive the physical stock item that the trade removes from the
+	 * stock containers, instead of a copy of the given result item, if the two differ in their
+	 * {@link ItemIdentityTags item identity tags}.
+	 * <p>
+	 * This has to be called during {@link #prepareTrade(Trade)}, so that the
+	 * {@link ShopkeeperTradeEvent} already includes the stock item.
+	 * 
+	 * @param trade
+	 *            the trade, not <code>null</code>
+	 * @param resultItem
+	 *            the result item of the trading recipe, not <code>null</code>
+	 */
+	protected final void useStockItemAsResult(Trade trade, UnmodifiableItemStack resultItem) {
+		UnmodifiableItemStack stockItem = ItemIdentityTags.findTradedStockItem(
+				stockContents,
+				NexoIntegration.stockPredicate(resultItem),
+				resultItem
+		);
+		if (stockItem == null) return;
+
+		ShopkeeperTradeEvent tradeEvent = trade.getTradeEvent();
+		assert !trade.isTradeEventCalled();
+		tradeEvent.setResultItem(stockItem);
 	}
 
 	@Override

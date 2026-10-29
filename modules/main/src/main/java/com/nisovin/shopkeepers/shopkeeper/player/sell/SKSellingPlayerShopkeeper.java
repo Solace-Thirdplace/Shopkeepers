@@ -12,9 +12,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import com.nisovin.shopkeepers.api.shopkeeper.TradingRecipe;
 import com.nisovin.shopkeepers.api.shopkeeper.offers.PriceOffer;
 import com.nisovin.shopkeepers.api.shopkeeper.player.sell.SellingPlayerShopkeeper;
-import com.nisovin.shopkeepers.itemsadder.ItemsAdderIntegration;
 import com.nisovin.shopkeepers.api.ui.DefaultUITypes;
 import com.nisovin.shopkeepers.api.util.UnmodifiableItemStack;
+import com.nisovin.shopkeepers.nexo.NexoIntegration;
 import com.nisovin.shopkeepers.shopkeeper.AbstractShopkeeper;
 import com.nisovin.shopkeepers.shopkeeper.SKDefaultShopTypes;
 import com.nisovin.shopkeepers.shopkeeper.ShopkeeperData;
@@ -29,6 +29,7 @@ import com.nisovin.shopkeepers.util.data.property.BasicProperty;
 import com.nisovin.shopkeepers.util.data.property.Property;
 import com.nisovin.shopkeepers.util.data.serialization.InvalidDataException;
 import com.nisovin.shopkeepers.util.inventory.InventoryUtils;
+import com.nisovin.shopkeepers.util.inventory.ItemIdentityTags;
 import com.nisovin.shopkeepers.util.inventory.ItemUtils;
 import com.nisovin.shopkeepers.util.java.CollectionUtils;
 import com.nisovin.shopkeepers.util.java.Validate;
@@ -119,7 +120,7 @@ public class SKSellingPlayerShopkeeper
 			UnmodifiableItemStack tradedItem = offer.getItem();
 			boolean outOfStock = !InventoryUtils.containsAtLeast(
 					stockContainerContents,
-					ItemsAdderIntegration.stockPredicate(tradedItem),
+					NexoIntegration.stockPredicate(tradedItem),
 					tradedItem.getAmount()
 			);
 			TradingRecipe recipe = this.createSellingRecipe(
@@ -181,7 +182,7 @@ public class SKSellingPlayerShopkeeper
 	public @Nullable PriceOffer getOffer(@ReadOnly ItemStack tradedItem) {
 		Validate.notNull(tradedItem, "tradedItem is null");
 		for (PriceOffer offer : this.getOffers()) {
-			if (ItemsAdderIntegration.matchesStock(offer.getItem(), tradedItem)) {
+			if (NexoIntegration.matchesStock(offer.getItem(), tradedItem)) {
 				return offer;
 			}
 		}
@@ -200,7 +201,7 @@ public class SKSellingPlayerShopkeeper
 		Iterator<? extends PriceOffer> iterator = offers.iterator();
 		while (iterator.hasNext()) {
 			PriceOffer offer = iterator.next();
-			if (offer.getItem().isSimilar(tradedItem)) {
+			if (ItemIdentityTags.isSimilar(offer.getItem(), tradedItem)) {
 				iterator.remove();
 				this.markDirty();
 				break;

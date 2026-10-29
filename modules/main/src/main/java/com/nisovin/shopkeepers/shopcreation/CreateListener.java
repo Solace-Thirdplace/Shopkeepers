@@ -42,6 +42,7 @@ import com.nisovin.shopkeepers.container.ShopContainers;
 import com.nisovin.shopkeepers.lang.Messages;
 import com.nisovin.shopkeepers.util.bukkit.EventUtils;
 import com.nisovin.shopkeepers.util.bukkit.PermissionUtils;
+import com.nisovin.shopkeepers.util.bukkit.SchedulerUtils;
 import com.nisovin.shopkeepers.util.bukkit.TextUtils;
 import com.nisovin.shopkeepers.util.interaction.TestPlayerInteractEvent;
 import com.nisovin.shopkeepers.util.inventory.InventoryUtils;
@@ -83,7 +84,7 @@ class CreateListener implements Listener {
 
 	void onEnable() {
 		shopCreationItemSelectedMessageEnabled = !Messages.creationItemSelected.isPlainTextEmpty();
-		Bukkit.getPluginManager().registerEvents(this, plugin);
+		EventUtils.registerEvents(this, plugin);
 		// Ensure that our interact event handler is always executed first, even after plugin
 		// reloads:
 		// In order to not change the order among the already registered event handlers of our own
@@ -376,7 +377,7 @@ class CreateListener implements Listener {
 
 					// Manually remove creation item from player's hand after this event is
 					// processed:
-					Bukkit.getScheduler().runTask(plugin, () -> {
+					SchedulerUtils.runEntityTaskOrOmit(plugin, player, () -> {
 						ItemStack newItemInMainHand = ItemUtils.decreaseItemAmount(itemInHand, 1);
 						player.getInventory().setItemInMainHand(newItemInMainHand);
 					});

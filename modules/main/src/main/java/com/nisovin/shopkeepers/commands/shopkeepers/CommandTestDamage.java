@@ -3,7 +3,8 @@ package com.nisovin.shopkeepers.commands.shopkeepers;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import com.nisovin.shopkeepers.SKShopkeepersPlugin;
 import com.nisovin.shopkeepers.api.ShopkeepersPlugin;
@@ -15,6 +16,8 @@ import com.nisovin.shopkeepers.commands.lib.commands.PlayerCommand;
 import com.nisovin.shopkeepers.commands.lib.context.CommandContextView;
 import com.nisovin.shopkeepers.text.Text;
 import com.nisovin.shopkeepers.util.bukkit.EntityUtils;
+import com.nisovin.shopkeepers.util.bukkit.SchedulerUtils;
+import com.nisovin.shopkeepers.util.bukkit.TaskHandle;
 import com.nisovin.shopkeepers.util.bukkit.TextUtils;
 import com.nisovin.shopkeepers.util.bukkit.Ticks;
 
@@ -86,9 +89,15 @@ class CommandTestDamage extends PlayerCommand {
 				+ "&a, Per tick: &e" + timesPerTick + "&a, Duration &e" + durationTicks
 				+ " ticks &a..."));
 
-		new BukkitRunnable() {
+		// Runs on the target's thread:
+		new Runnable() {
 
 			private int tickCounter = 0;
+			private @Nullable TaskHandle task;
+
+			void start() {
+				task = SchedulerUtils.runEntityTaskTimerOrOmit(plugin, target, this, null, 1L, 1L);
+			}
 
 			@Override
 			public void run() {
@@ -98,7 +107,9 @@ class CommandTestDamage extends PlayerCommand {
 					if (playerValid) {
 						player.sendMessage(ChatColor.GREEN + "... Done");
 					}
-					this.cancel();
+					if (task != null) {
+						task.cancel();
+					}
 					return;
 				}
 
@@ -126,6 +137,6 @@ class CommandTestDamage extends PlayerCommand {
 							+ ChatColor.GRAY + ")");
 				}
 			}
-		}.runTaskTimer(plugin, 1L, 1L);
+		}.start();
 	}
 }

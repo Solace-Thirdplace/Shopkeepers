@@ -8,9 +8,14 @@ import com.nisovin.shopkeepers.api.shopkeeper.ShopkeeperCreateException;
 import com.nisovin.shopkeepers.api.shopkeeper.admin.AdminShopCreationData;
 import com.nisovin.shopkeepers.api.shopkeeper.admin.AdminShopkeeper;
 import com.nisovin.shopkeepers.api.ui.DefaultUITypes;
+import com.nisovin.shopkeepers.api.util.UnmodifiableItemStack;
 import com.nisovin.shopkeepers.lang.Messages;
 import com.nisovin.shopkeepers.shopkeeper.AbstractShopkeeper;
 import com.nisovin.shopkeepers.shopkeeper.ShopkeeperData;
+import com.nisovin.shopkeepers.ui.lib.UIState;
+import com.nisovin.shopkeepers.ui.lib.View;
+import com.nisovin.shopkeepers.ui.trading.Trade;
+import com.nisovin.shopkeepers.ui.trading.TradingView;
 import com.nisovin.shopkeepers.ui.trading.TradingViewProvider;
 import com.nisovin.shopkeepers.util.bukkit.PermissionUtils;
 import com.nisovin.shopkeepers.util.bukkit.TextUtils;
@@ -20,6 +25,7 @@ import com.nisovin.shopkeepers.util.data.property.EmptyDataPredicates;
 import com.nisovin.shopkeepers.util.data.property.Property;
 import com.nisovin.shopkeepers.util.data.serialization.InvalidDataException;
 import com.nisovin.shopkeepers.util.data.serialization.java.StringSerializers;
+import com.nisovin.shopkeepers.util.inventory.ItemIdentityTags;
 import com.nisovin.shopkeepers.util.java.StringUtils;
 
 public abstract class AbstractAdminShopkeeper
@@ -52,6 +58,55 @@ public abstract class AbstractAdminShopkeeper
 			}
 
 			return true;
+		}
+
+		@Override
+		protected @Nullable View createView(Player player, UIState uiState) {
+			return new AdminShopTradingView(this, player, uiState);
+		}
+	}
+
+	public static class AdminShopTradingView extends TradingView {
+
+		protected AdminShopTradingView(
+				AdminShopTradingViewProvider provider,
+				Player player,
+				UIState uiState
+		) {
+			super(provider, player, uiState);
+		}
+
+		/**
+		 * Gets the item that the trading player receives in place of the given result item.
+		 * <p>
+		 * Every trade hands out a new copy of the result item. Without its
+		 * {@link ItemIdentityTags item identity tags}, the copies do not share the identity of the
+		 * offer item. This applies regardless of whether the identity tags are
+		 * {@link ItemIdentityTags#isIgnored() ignored} by item comparisons.
+		 * 
+		 * @param resultItem
+		 *            the result item of the trading recipe, not <code>null</code>
+		 * @return the item to hand out, or <code>null</code> to hand out the result item as is
+		 */
+		public static @Nullable UnmodifiableItemStack getHandedOutResultItem(
+				UnmodifiableItemStack resultItem
+		) {
+			UnmodifiableItemStack strippedResultItem = ItemIdentityTags.strip(resultItem);
+			if (strippedResultItem == resultItem) return null;
+			return strippedResultItem;
+		}
+
+		@Override
+		protected void setupTrade(Trade trade) {
+			super.setupTrade(trade);
+
+			UnmodifiableItemStack handedOutItem = getHandedOutResultItem(
+					trade.getTradingRecipe().getResultItem()
+			);
+			if (handedOutItem == null) return;
+
+			assert !trade.isTradeEventCalled();
+			trade.getTradeEvent().setResultItem(handedOutItem);
 		}
 	}
 

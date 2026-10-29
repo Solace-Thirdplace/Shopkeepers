@@ -2,6 +2,7 @@ package com.nisovin.shopkeepers.commands.shopkeepers;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -33,6 +34,7 @@ import com.nisovin.shopkeepers.shopkeeper.registry.SKShopkeeperRegistry;
 import com.nisovin.shopkeepers.shopkeeper.spawning.ShopkeeperSpawner;
 import com.nisovin.shopkeepers.shopobjects.entity.base.EntityAI;
 import com.nisovin.shopkeepers.text.Text;
+import com.nisovin.shopkeepers.util.bukkit.SchedulerUtils;
 import com.nisovin.shopkeepers.util.bukkit.TextUtils;
 import com.nisovin.shopkeepers.util.taskqueue.TaskQueueStatistics;
 import com.nisovin.shopkeepers.util.timer.Timings;
@@ -145,7 +147,13 @@ class CommandCheck extends Command {
 			String worldName = world.getName();
 			Chunk[] worldLoadedChunks = world.getLoadedChunks();
 			int chunksWithLoadedEntities = 0;
-			List<Entity> worldEntities = world.getEntities();
+			// On Folia, only the entities and chunks of the current region can be inspected:
+			List<Entity> worldEntities;
+			try {
+				worldEntities = world.getEntities();
+			} catch (IllegalStateException | UnsupportedOperationException e) {
+				worldEntities = Collections.emptyList();
+			}
 			int worldDeadEntities = 0;
 			int worldInvalidEntities = 0;
 			for (Entity entity : worldEntities) {
@@ -155,6 +163,9 @@ class CommandCheck extends Command {
 			int worldDeadEntitiesInChunks = 0;
 			int worldInvalidEntitiesInChunks = 0;
 			for (Chunk chunk : worldLoadedChunks) {
+				if (!SchedulerUtils.isOwnedByCurrentRegion(world, chunk.getX(), chunk.getZ())) {
+					continue;
+				}
 				if (!chunk.isEntitiesLoaded()) continue;
 
 				chunksWithLoadedEntities++;

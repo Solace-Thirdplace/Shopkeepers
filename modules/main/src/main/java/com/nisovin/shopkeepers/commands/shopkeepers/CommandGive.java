@@ -6,6 +6,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import com.nisovin.shopkeepers.SKShopkeepersPlugin;
 import com.nisovin.shopkeepers.api.ShopkeepersPlugin;
 import com.nisovin.shopkeepers.api.internal.util.Unsafe;
 import com.nisovin.shopkeepers.api.shopkeeper.ShopType;
@@ -22,6 +23,7 @@ import com.nisovin.shopkeepers.commands.lib.arguments.SenderPlayerFallback;
 import com.nisovin.shopkeepers.commands.lib.context.CommandContextView;
 import com.nisovin.shopkeepers.lang.Messages;
 import com.nisovin.shopkeepers.shopcreation.ShopCreationItem;
+import com.nisovin.shopkeepers.util.bukkit.SchedulerUtils;
 import com.nisovin.shopkeepers.util.bukkit.TextUtils;
 import com.nisovin.shopkeepers.util.inventory.InventoryUtils;
 
@@ -75,27 +77,32 @@ class CommandGive extends Command {
 
 		shopCreationItem.applyItemMeta();
 
-		PlayerInventory inventory = targetPlayer.getInventory();
-		@Nullable ItemStack[] contents = Unsafe.castNonNull(inventory.getStorageContents());
-		int remaining = InventoryUtils.addItems(contents, item);
-		InventoryUtils.setStorageContents(inventory, contents);
-		if (remaining > 0) {
-			item.setAmount(remaining);
-			targetPlayer.getWorld().dropItem(targetPlayer.getEyeLocation(), item);
-		}
+		// The target player's inventory can only be modified, and items dropped at their location, on
+		// the thread that owns the player (Folia: the command may run on another region's thread or
+		// on the global region thread).
+		SchedulerUtils.runOnEntityOrOmit(SKShopkeepersPlugin.getInstance(), targetPlayer, () -> {
+			PlayerInventory inventory = targetPlayer.getInventory();
+			@Nullable ItemStack[] contents = Unsafe.castNonNull(inventory.getStorageContents());
+			int remaining = InventoryUtils.addItems(contents, item);
+			InventoryUtils.setStorageContents(inventory, contents);
+			if (remaining > 0) {
+				item.setAmount(remaining);
+				targetPlayer.getWorld().dropItem(targetPlayer.getEyeLocation(), item);
+			}
 
-		// Success:
-		// TODO Show shop creation item via hover text?
-		// Inform target player:
-		TextUtils.sendMessage(targetPlayer, Messages.shopCreationItemsReceived,
-				"amount", amount
-		);
-		if (!targetSelf) {
-			// Inform command executor:
-			TextUtils.sendMessage(sender, Messages.shopCreationItemsGiven,
-					"player", TextUtils.getPlayerText(targetPlayer),
+			// Success:
+			// TODO Show shop creation item via hover text?
+			// Inform target player:
+			TextUtils.sendMessage(targetPlayer, Messages.shopCreationItemsReceived,
 					"amount", amount
 			);
-		}
+			if (!targetSelf) {
+				// Inform command executor:
+				TextUtils.sendMessage(sender, Messages.shopCreationItemsGiven,
+						"player", TextUtils.getPlayerText(targetPlayer),
+						"amount", amount
+				);
+			}
+		});
 	}
 }
