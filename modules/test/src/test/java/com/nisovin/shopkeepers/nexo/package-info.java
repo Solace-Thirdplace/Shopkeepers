@@ -1,2 +1,2 @@
 @org.eclipse.jdt.annotation.NonNullByDefault
-package com.nisovin.shopkeepers.itemsadder;
+package com.nisovin.shopkeepers.nexo;

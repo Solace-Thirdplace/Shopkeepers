@@ -1,11 +1,10 @@
-package com.nisovin.shopkeepers.itemsadder;
+package com.nisovin.shopkeepers.nexo;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Predicate;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
@@ -32,7 +31,7 @@ import com.nisovin.shopkeepers.util.inventory.ItemUtils;
 
 /**
  * Tests for {@link ItemIdentityTags} and its composition with the stock matching of
- * {@link ItemsAdderIntegration}.
+ * {@link NexoIntegration}.
  */
 public class ItemIdentityTagsTest extends AbstractBukkitTest {
 
@@ -83,7 +82,7 @@ public class ItemIdentityTagsTest extends AbstractBukkitTest {
 	}
 
 	private static Predicate<@Nullable ItemStack> stockPredicate(ItemStack offerItem) {
-		return ItemsAdderIntegration.stockPredicate(UnmodifiableItemStack.ofNonNull(offerItem));
+		return NexoIntegration.stockPredicate(UnmodifiableItemStack.ofNonNull(offerItem));
 	}
 
 	@After
@@ -262,13 +261,15 @@ public class ItemIdentityTagsTest extends AbstractBukkitTest {
 
 	// MERCHANT COST ITEMS
 
-	private static ItemStack itemsAdderSword(String id) {
-		// ItemsAdder stores its item id as raw custom data, outside of the Bukkit custom tags:
-		ItemStack sword = Bukkit.getItemFactory().createItemStack(
-				"minecraft:diamond_sword[minecraft:custom_data="
-						+ "{itemsadder:{namespace:\"custom\",id:\"" + id + "\"}}]"
-		);
+	private static ItemStack nexoSword(String id) {
+		// Nexo stores its item id as a custom tag:
+		ItemStack sword = new ItemStack(Material.DIAMOND_SWORD);
 		ItemMeta itemMeta = metaOf(sword);
+		itemMeta.getPersistentDataContainer().set(
+				NexoItemIds.ITEM_ID_KEY,
+				PersistentDataType.STRING,
+				id
+		);
 		itemMeta.setItemName("Ruby Sword");
 		itemMeta.setCustomModelData(10001);
 		sword.setItemMeta(itemMeta);
@@ -283,7 +284,7 @@ public class ItemIdentityTagsTest extends AbstractBukkitTest {
 
 	@Test
 	public void testMerchantCostItemDropsCustomDataOfUnstackableItems() {
-		ItemStack sword = tagged(itemsAdderSword("ruby_sword"), "a");
+		ItemStack sword = tagged(nexoSword("ruby_sword"), "a");
 		ItemStack original = sword.clone();
 		Assert.assertTrue("Precondition", hasCustomData(sword));
 
@@ -318,25 +319,25 @@ public class ItemIdentityTagsTest extends AbstractBukkitTest {
 	@Test
 	public void testRequiredItemMatchingRejectsLookAlikes() {
 		UnmodifiableItemStack required = UnmodifiableItemStack.ofNonNull(
-				tagged(itemsAdderSword("ruby_sword"), "required")
+				tagged(nexoSword("ruby_sword"), "required")
 		);
 		ItemStack costItem = Unsafe.assertNonNull(
 				ItemIdentityTags.toMerchantCostItem(ItemUtils.asItemStack(required))
 		);
 
 		// Same item, own identity tags:
-		ItemStack genuine = tagged(itemsAdderSword("ruby_sword"), "genuine");
+		ItemStack genuine = tagged(nexoSword("ruby_sword"), "genuine");
 		Assert.assertTrue(ItemIdentityTags.matchesRequiredItem(genuine, required));
 		Assert.assertTrue(ItemIdentityTags.isSimilar(required, genuine));
 
-		// A different ItemsAdder item with the same base item, name and model:
-		ItemStack otherId = tagged(itemsAdderSword("emerald_sword"), "other");
+		// A different Nexo item with the same base item, name and model:
+		ItemStack otherId = tagged(nexoSword("emerald_sword"), "other");
 		// Minecraft accepts it for the merchant cost item:
 		Assert.assertTrue(Compat.getProvider().matches(otherId, costItem));
 		Assert.assertFalse(ItemIdentityTags.matchesRequiredItem(otherId, required));
 		Assert.assertFalse(ItemIdentityTags.isSimilar(required, otherId));
 
-		// The same name and model, but without the ItemsAdder data:
+		// The same name and model, but without the Nexo data:
 		ItemStack missingData = new ItemStack(Material.DIAMOND_SWORD);
 		ItemMeta missingDataMeta = metaOf(missingData);
 		missingDataMeta.setItemName("Ruby Sword");
@@ -348,7 +349,7 @@ public class ItemIdentityTagsTest extends AbstractBukkitTest {
 		Assert.assertFalse(ItemIdentityTags.isSimilar(required, missingData));
 
 		// Other custom tags that differ:
-		ItemStack otherTags = tagged(itemsAdderSword("ruby_sword"), "tags");
+		ItemStack otherTags = tagged(nexoSword("ruby_sword"), "tags");
 		ItemMeta otherTagsMeta = metaOf(otherTags);
 		otherTagsMeta.getPersistentDataContainer().set(
 				NamespacedKeyUtils.create("thirdplacetweaks", "souljar"),

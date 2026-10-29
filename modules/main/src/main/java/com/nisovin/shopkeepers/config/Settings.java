@@ -93,9 +93,9 @@ public class Settings extends Config {
 
 	public static boolean enableTownyRestrictions = false;
 
-	public static boolean enableItemsAdderIntegration = true;
-	public static List<String> itemsAdderItemUpdateExclusions = new ArrayList<>(0);
-	public static boolean itemsAdderMatchStockById = true;
+	public static boolean enableNexoIntegration = true;
+	public static List<String> nexoItemUpdateExclusions = new ArrayList<>(0);
+	public static boolean nexoMatchStockById = true;
 	public static boolean ignoreItemIdentityTags = true;
 
 	public static boolean checkSpawnLocationInteractionResult = false;

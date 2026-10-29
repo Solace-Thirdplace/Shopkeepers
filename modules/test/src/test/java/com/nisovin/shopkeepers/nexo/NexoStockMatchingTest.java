@@ -1,4 +1,7 @@
-package com.nisovin.shopkeepers.itemsadder;
+package com.nisovin.shopkeepers.nexo;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import org.bukkit.Material;
 import org.bukkit.attribute.Attribute;
@@ -15,16 +18,15 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import com.nisovin.shopkeepers.api.internal.util.Unsafe;
+import com.nisovin.shopkeepers.api.util.UnmodifiableItemStack;
+import com.nisovin.shopkeepers.config.Settings;
 import com.nisovin.shopkeepers.testutil.AbstractBukkitTest;
 import com.nisovin.shopkeepers.util.bukkit.NamespacedKeyUtils;
 
 /**
- * Tests for {@link ItemsAdderStockMatching}.
- * <p>
- * These cover the item comparison behind the ItemsAdder stock matching. The identification of
- * ItemsAdder items itself requires the ItemsAdder plugin and is therefore not covered here.
+ * Tests for {@link NexoStockMatching}, {@link NexoItemIds} and {@link NexoItemMatcher}.
  */
-public class ItemsAdderStockMatchingTest extends AbstractBukkitTest {
+public class NexoStockMatchingTest extends AbstractBukkitTest {
 
 	private static ItemMeta metaOf(ItemStack itemStack) {
 		return Unsafe.assertNonNull(itemStack.getItemMeta());
@@ -39,7 +41,7 @@ public class ItemsAdderStockMatchingTest extends AbstractBukkitTest {
 	}
 
 	private static boolean extrasMatch(ItemStack itemStack1, ItemStack itemStack2) {
-		return ItemsAdderStockMatching.customExtrasMatch(
+		return NexoStockMatching.customExtrasMatch(
 				itemStack1.getItemMeta(),
 				itemStack2.getItemMeta()
 		);
@@ -49,7 +51,7 @@ public class ItemsAdderStockMatchingTest extends AbstractBukkitTest {
 
 	@Test
 	public void testDisplayDataIsIgnored() {
-		// An outdated copy of an ItemsAdder item differs from the current one in its display data.
+		// An outdated copy of a Nexo item differs from the current one in its display data.
 		// This is exactly the difference that the matching is meant to look past.
 		ItemStack oldGeneration = named(Material.PAPER, "arkadelaide_glorious_birch_lake");
 		ItemStack newGeneration = named(Material.PAPER, "Glorious Birch Lake");
@@ -124,13 +126,13 @@ public class ItemsAdderStockMatchingTest extends AbstractBukkitTest {
 	}
 
 	@Test
-	public void testItemsAdderCustomTagsAreIgnored() {
-		// ItemsAdder is free to change its own tags between versions. They identify the item, which
-		// the caller has already verified by the time this comparison runs.
+	public void testNexoCustomTagsAreIgnored() {
+		// Nexo is free to change its own tags between versions. They identify the item, which the
+		// caller has already verified by the time this comparison runs.
 		ItemStack itemStack1 = new ItemStack(Material.PAPER);
 		ItemMeta meta1 = metaOf(itemStack1);
 		meta1.getPersistentDataContainer().set(
-				NamespacedKeyUtils.create("itemsadder", "some-internal-state"),
+				NamespacedKeyUtils.create("nexo", "some-internal-state"),
 				PersistentDataType.STRING,
 				"one"
 		);
@@ -139,7 +141,7 @@ public class ItemsAdderStockMatchingTest extends AbstractBukkitTest {
 		ItemStack itemStack2 = new ItemStack(Material.PAPER);
 		ItemMeta meta2 = metaOf(itemStack2);
 		meta2.getPersistentDataContainer().set(
-				NamespacedKeyUtils.create("itemsadder", "some-internal-state"),
+				NamespacedKeyUtils.create("nexo", "some-internal-state"),
 				PersistentDataType.STRING,
 				"two"
 		);
@@ -169,15 +171,15 @@ public class ItemsAdderStockMatchingTest extends AbstractBukkitTest {
 
 	@Test
 	public void testModifierIdsOnlyDifference() {
-		// This is the situation on Backend: ItemsAdder mints a fresh modifier id whenever it loads
-		// its item configurations, so a stored item never equals a freshly created copy of itself.
+		// A freshly built item can carry a fresh modifier id, so a stored item would never equal a
+		// freshly created copy of itself.
 		ItemStack stored = withArmorModifier("7384e0d3-4a5e-465d-bf2e-41943f7f62e5", 0.0D);
 		ItemStack fresh = withArmorModifier("5da6e22e-5c53-4514-8e7b-206d5cd568c5", 0.0D);
 		Assert.assertFalse("Precondition", stored.equals(fresh));
 
 		ItemMeta storedMeta = metaOf(stored);
 		ItemMeta freshMeta = metaOf(fresh);
-		Assert.assertTrue(ItemsAdderStockMatching.copyAttributeModifierIds(storedMeta, freshMeta));
+		Assert.assertTrue(NexoStockMatching.copyAttributeModifierIds(storedMeta, freshMeta));
 
 		fresh.setItemMeta(freshMeta);
 		Assert.assertEquals(stored, fresh);
@@ -188,7 +190,7 @@ public class ItemsAdderStockMatchingTest extends AbstractBukkitTest {
 		ItemStack stored = withArmorModifier("7384e0d3-4a5e-465d-bf2e-41943f7f62e5", 0.0D);
 		ItemStack fresh = withArmorModifier("5da6e22e-5c53-4514-8e7b-206d5cd568c5", 2.0D);
 
-		Assert.assertFalse(ItemsAdderStockMatching.copyAttributeModifierIds(
+		Assert.assertFalse(NexoStockMatching.copyAttributeModifierIds(
 				metaOf(stored),
 				metaOf(fresh)
 		));
@@ -199,11 +201,11 @@ public class ItemsAdderStockMatchingTest extends AbstractBukkitTest {
 		ItemStack withModifier = withArmorModifier("7384e0d3-4a5e-465d-bf2e-41943f7f62e5", 0.0D);
 		ItemStack withoutModifier = new ItemStack(Material.PAPER);
 
-		Assert.assertFalse(ItemsAdderStockMatching.copyAttributeModifierIds(
+		Assert.assertFalse(NexoStockMatching.copyAttributeModifierIds(
 				metaOf(withModifier),
 				metaOf(withoutModifier)
 		));
-		Assert.assertFalse(ItemsAdderStockMatching.copyAttributeModifierIds(
+		Assert.assertFalse(NexoStockMatching.copyAttributeModifierIds(
 				metaOf(withoutModifier),
 				metaOf(withModifier)
 		));
@@ -214,9 +216,66 @@ public class ItemsAdderStockMatchingTest extends AbstractBukkitTest {
 		ItemStack itemStack1 = new ItemStack(Material.PAPER);
 		ItemStack itemStack2 = new ItemStack(Material.PAPER);
 
-		Assert.assertTrue(ItemsAdderStockMatching.copyAttributeModifierIds(
+		Assert.assertTrue(NexoStockMatching.copyAttributeModifierIds(
 				metaOf(itemStack1),
 				metaOf(itemStack2)
 		));
+	}
+
+	// NEXO ITEM IDS
+
+	private static ItemStack nexoItem(Material type, String itemId, String displayName) {
+		ItemStack itemStack = named(type, displayName);
+		ItemMeta itemMeta = metaOf(itemStack);
+		itemMeta.getPersistentDataContainer().set(
+				NexoItemIds.ITEM_ID_KEY,
+				PersistentDataType.STRING,
+				itemId
+		);
+		itemStack.setItemMeta(itemMeta);
+		return itemStack;
+	}
+
+	@Test
+	public void testItemId() {
+		Assert.assertEquals(
+				"glorious_birch_lake",
+				NexoItemIds.getItemId(nexoItem(Material.PAPER, "glorious_birch_lake", "Lake"))
+		);
+		Assert.assertNull(NexoItemIds.getItemId(new ItemStack(Material.PAPER)));
+		Assert.assertNull(NexoItemIds.getItemId(named(Material.PAPER, "Lake")));
+		Assert.assertNull(NexoItemIds.getItemId(null));
+	}
+
+	private static boolean matchesStock(ItemStack offerItem, ItemStack containerItem) {
+		return new NexoItemMatcher()
+				.stockPredicate(UnmodifiableItemStack.ofNonNull(offerItem))
+				.test(containerItem);
+	}
+
+	@Test
+	public void testStockMatchesById() {
+		ItemStack offer = nexoItem(Material.PAPER, "glorious_birch_lake", "Glorious Birch Lake");
+		ItemStack oldCopy = nexoItem(Material.PAPER, "glorious_birch_lake", "Old Name");
+		ItemStack otherItem = nexoItem(Material.PAPER, "other_painting", "Glorious Birch Lake");
+		ItemStack lookAlike = named(Material.PAPER, "Glorious Birch Lake");
+
+		Assert.assertTrue(matchesStock(offer, offer.clone()));
+		Assert.assertTrue(matchesStock(offer, oldCopy));
+		Assert.assertFalse(matchesStock(offer, otherItem));
+		Assert.assertFalse(matchesStock(offer, lookAlike));
+	}
+
+	@Test
+	public void testExcludedItemsAreComparedStrictly() {
+		ItemStack offer = nexoItem(Material.PAPER, "instant_villager_pair", "Villager Pair");
+		ItemStack oldCopy = nexoItem(Material.PAPER, "instant_villager_pair", "Old Name");
+		Settings.nexoItemUpdateExclusions = new ArrayList<>(List.of("Instant_Villager_Pair"));
+		try {
+			Assert.assertTrue(matchesStock(offer, offer.clone()));
+			Assert.assertFalse(matchesStock(offer, oldCopy));
+		} finally {
+			Settings.nexoItemUpdateExclusions = new ArrayList<>(0);
+		}
 	}
 }

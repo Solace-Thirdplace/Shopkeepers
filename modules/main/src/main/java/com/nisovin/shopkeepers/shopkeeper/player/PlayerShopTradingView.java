@@ -14,8 +14,8 @@ import com.nisovin.shopkeepers.api.internal.util.Unsafe;
 import com.nisovin.shopkeepers.api.shopkeeper.container.ShopContainer;
 import com.nisovin.shopkeepers.api.util.UnmodifiableItemStack;
 import com.nisovin.shopkeepers.config.Settings;
-import com.nisovin.shopkeepers.itemsadder.ItemsAdderIntegration;
 import com.nisovin.shopkeepers.lang.Messages;
+import com.nisovin.shopkeepers.nexo.NexoIntegration;
 import com.nisovin.shopkeepers.ui.lib.UIState;
 import com.nisovin.shopkeepers.ui.trading.Trade;
 import com.nisovin.shopkeepers.ui.trading.TradingContext;
@@ -147,7 +147,7 @@ public class PlayerShopTradingView extends TradingView {
 	protected final void useStockItemAsResult(Trade trade, UnmodifiableItemStack resultItem) {
 		UnmodifiableItemStack stockItem = ItemIdentityTags.findTradedStockItem(
 				stockContents,
-				ItemsAdderIntegration.stockPredicate(resultItem),
+				NexoIntegration.stockPredicate(resultItem),
 				resultItem
 		);
 		if (stockItem == null) return;

@@ -8,8 +8,8 @@ import com.nisovin.shopkeepers.api.shopkeeper.TradingRecipe;
 import com.nisovin.shopkeepers.api.shopkeeper.offers.PriceOffer;
 import com.nisovin.shopkeepers.api.util.UnmodifiableItemStack;
 import com.nisovin.shopkeepers.currency.CurrencyInventoryUtils;
-import com.nisovin.shopkeepers.itemsadder.ItemsAdderIntegration;
 import com.nisovin.shopkeepers.lang.Messages;
+import com.nisovin.shopkeepers.nexo.NexoIntegration;
 import com.nisovin.shopkeepers.shopkeeper.player.PlayerShopTaxUtils;
 import com.nisovin.shopkeepers.shopkeeper.player.PlayerShopTradingView;
 import com.nisovin.shopkeepers.ui.lib.UIState;
@@ -88,7 +88,7 @@ public class SellingPlayerShopTradingView extends PlayerShopTradingView {
 		UnmodifiableItemStack soldItem = tradingRecipe.getResultItem();
 		if (InventoryUtils.removeItems(
 				this.stockContents,
-				ItemsAdderIntegration.stockPredicate(soldItem),
+				NexoIntegration.stockPredicate(soldItem),
 				soldItem.getAmount()
 		) != 0) {
 			TextUtils.sendMessage(tradingPlayer, Messages.cannotTradeInsufficientStock);
