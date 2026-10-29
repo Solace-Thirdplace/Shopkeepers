@@ -48,6 +48,8 @@ public class TradingPlayerShopTradingView extends PlayerShopTradingView {
 			return false;
 		}
 
+		this.useStockItemAsResult(trade, tradingRecipe.getResultItem());
+
 		return true;
 	}
 

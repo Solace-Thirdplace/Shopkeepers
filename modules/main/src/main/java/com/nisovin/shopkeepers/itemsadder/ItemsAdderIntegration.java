@@ -12,6 +12,7 @@ import com.nisovin.shopkeepers.api.util.UnmodifiableItemStack;
 import com.nisovin.shopkeepers.config.Settings;
 import com.nisovin.shopkeepers.dependencies.itemsadder.ItemsAdderDependency;
 import com.nisovin.shopkeepers.util.annotations.ReadOnly;
+import com.nisovin.shopkeepers.util.inventory.ItemIdentityTags;
 import com.nisovin.shopkeepers.util.inventory.ItemUtils;
 import com.nisovin.shopkeepers.util.java.Validate;
 import com.nisovin.shopkeepers.util.logging.Log;
@@ -49,7 +50,8 @@ public class ItemsAdderIntegration {
 	 * Gets a {@link Predicate} that accepts the items that count as stock for the given offer item.
 	 * <p>
 	 * Unless the ItemsAdder integration is active and the given item is an ItemsAdder item, this
-	 * falls back to Shopkeepers' normal strict item comparison.
+	 * falls back to Shopkeepers' normal strict item comparison. Both comparisons ignore the
+	 * {@link ItemIdentityTags item identity tags} if they are ignored.
 	 *
 	 * @param offerItem
 	 *            the offer item, not <code>null</code>
@@ -59,6 +61,15 @@ public class ItemsAdderIntegration {
 			UnmodifiableItemStack offerItem
 	) {
 		Validate.notNull(offerItem, "offerItem is null");
+		return ItemIdentityTags.ignoringTags(
+				offerItem,
+				ItemsAdderIntegration::itemsAdderStockPredicate
+		);
+	}
+
+	private static Predicate<@ReadOnly @Nullable ItemStack> itemsAdderStockPredicate(
+			UnmodifiableItemStack offerItem
+	) {
 		ItemsAdderItemMatcher matcher = ItemsAdderIntegration.matcher;
 		// The setting is checked here, rather than when the matcher is set up, so that it can be
 		// toggled via a config reload without requiring a server restart:

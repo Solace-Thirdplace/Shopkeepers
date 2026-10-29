@@ -68,6 +68,7 @@ public class SellingPlayerShopTradingView extends PlayerShopTradingView {
 		}
 
 		this.currentOffer = offer;
+		this.useStockItemAsResult(trade, soldItem);
 
 		return true;
 	}
