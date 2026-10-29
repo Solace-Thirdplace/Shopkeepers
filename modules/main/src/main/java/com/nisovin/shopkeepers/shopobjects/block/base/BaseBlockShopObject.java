@@ -9,12 +9,14 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import com.nisovin.shopkeepers.SKShopkeepersPlugin;
 import com.nisovin.shopkeepers.api.internal.util.Unsafe;
 import com.nisovin.shopkeepers.api.shopkeeper.ShopCreationData;
 import com.nisovin.shopkeepers.debug.DebugOptions;
 import com.nisovin.shopkeepers.shopkeeper.AbstractShopkeeper;
 import com.nisovin.shopkeepers.shopobjects.ShopkeeperMetadata;
 import com.nisovin.shopkeepers.shopobjects.block.AbstractBlockShopObject;
+import com.nisovin.shopkeepers.util.bukkit.SchedulerUtils;
 import com.nisovin.shopkeepers.util.java.CyclicCounter;
 import com.nisovin.shopkeepers.util.java.RateLimiter;
 import com.nisovin.shopkeepers.util.logging.Log;
@@ -186,12 +188,23 @@ public abstract class BaseBlockShopObject extends AbstractBlockShopObject {
 		Block block = this.block;
 		if (block == null) return;
 
-		// Remove the block:
-		block.setType(Material.AIR, false);
 		this.block = null;
 
-		// Cleanup:
-		this.cleanUpBlock(block);
+		// Remove the block and clean up:
+		// This has to happen on the thread that owns the block's chunk. If this is not the current
+		// thread, the block is removed during the next tick of its region.
+		Runnable removeBlock = () -> {
+			// Skip if the shop object has been respawned at the same block in the meantime:
+			if (block.equals(this.block)) return;
+
+			block.setType(Material.AIR, false);
+			this.cleanUpBlock(block);
+		};
+		SchedulerUtils.runRegionCleanupTask(
+				SKShopkeepersPlugin.getInstance(),
+				block.getLocation(),
+				removeBlock
+		);
 
 		// Inform about the object id change:
 		this.onIdChanged();

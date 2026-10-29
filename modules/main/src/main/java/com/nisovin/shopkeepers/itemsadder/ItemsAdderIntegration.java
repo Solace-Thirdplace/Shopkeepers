@@ -2,7 +2,6 @@ package com.nisovin.shopkeepers.itemsadder;
 
 import java.util.function.Predicate;
 
-import org.bukkit.Bukkit;
 import org.bukkit.event.HandlerList;
 import org.bukkit.inventory.ItemStack;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -12,6 +11,7 @@ import com.nisovin.shopkeepers.api.util.UnmodifiableItemStack;
 import com.nisovin.shopkeepers.config.Settings;
 import com.nisovin.shopkeepers.dependencies.itemsadder.ItemsAdderDependency;
 import com.nisovin.shopkeepers.util.annotations.ReadOnly;
+import com.nisovin.shopkeepers.util.bukkit.EventUtils;
 import com.nisovin.shopkeepers.util.inventory.ItemIdentityTags;
 import com.nisovin.shopkeepers.util.inventory.ItemUtils;
 import com.nisovin.shopkeepers.util.java.Validate;
@@ -110,7 +110,7 @@ public class ItemsAdderIntegration {
 		Log.info("ItemsAdder found: Automatically updating stored ItemsAdder items.");
 		ItemsAdderListener listener = new ItemsAdderListener(plugin);
 		this.listener = listener;
-		Bukkit.getPluginManager().registerEvents(listener, plugin);
+		EventUtils.registerEvents(listener, plugin);
 		matcher = new ItemsAdderItemMatcher();
 	}
 

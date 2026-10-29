@@ -12,6 +12,10 @@ public final class ShopkeeperSpawnState extends Component {
 		SPAWNED,
 		QUEUED,
 		PENDING_WORLD_SAVE_RESPAWN,
+		/**
+		 * The spawning has been handed over to the thread that owns the shopkeeper's chunk.
+		 */
+		REGION_PENDING,
 		SPAWNING,
 		DESPAWNING
 	}
@@ -50,6 +54,7 @@ public final class ShopkeeperSpawnState extends Component {
 		switch (state) {
 		case QUEUED:
 		case PENDING_WORLD_SAVE_RESPAWN:
+		case REGION_PENDING:
 		case SPAWNING:
 			return true;
 		default:

@@ -9,10 +9,10 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 import org.bukkit.Bukkit;
+import org.bukkit.World;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
-import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -23,6 +23,7 @@ import com.nisovin.shopkeepers.api.internal.InternalShopkeepersPlugin;
 import com.nisovin.shopkeepers.api.internal.util.Unsafe;
 import com.nisovin.shopkeepers.api.shopkeeper.ShopCreationData;
 import com.nisovin.shopkeepers.api.shopkeeper.ShopType;
+import com.nisovin.shopkeepers.api.util.ChunkCoords;
 import com.nisovin.shopkeepers.commands.Commands;
 import com.nisovin.shopkeepers.compat.Compat;
 import com.nisovin.shopkeepers.compat.MC_1_21_11;
@@ -72,6 +73,8 @@ import com.nisovin.shopkeepers.trading.commandtrading.CommandTrading;
 import com.nisovin.shopkeepers.ui.SKDefaultUITypes;
 import com.nisovin.shopkeepers.ui.SKUIRegistry;
 import com.nisovin.shopkeepers.ui.SKUISystem;
+import com.nisovin.shopkeepers.util.bukkit.EventUtils;
+import com.nisovin.shopkeepers.util.bukkit.PluginLock;
 import com.nisovin.shopkeepers.util.bukkit.SchedulerUtils;
 import com.nisovin.shopkeepers.util.java.ClassUtils;
 import com.nisovin.shopkeepers.util.java.Validate;
@@ -296,6 +299,15 @@ public class SKShopkeepersPlugin extends JavaPlugin implements InternalShopkeepe
 
 	@Override
 	public void onEnable() {
+		PluginLock.lock();
+		try {
+			this.enable();
+		} finally {
+			PluginLock.unlock();
+		}
+	}
+
+	private void enable() {
 		assert Log.getLogger() != null; // Log should already have been set up
 		// Plugin instance and API might already have been set during onLoad:
 		boolean alreadySetUp = true;
@@ -395,8 +407,7 @@ public class SKShopkeepersPlugin extends JavaPlugin implements InternalShopkeepe
 		removeShopOnContainerBreak.onEnable();
 
 		// Register events:
-		PluginManager pm = Bukkit.getPluginManager();
-		pm.registerEvents(new PlayerJoinQuitListener(this), this);
+		EventUtils.registerEvents(new PlayerJoinQuitListener(this), this);
 		new TradingCountListener(this).onEnable();
 
 		// DEFAULT SHOP OBJECT TYPES
@@ -484,6 +495,15 @@ public class SKShopkeepersPlugin extends JavaPlugin implements InternalShopkeepe
 
 	@Override
 	public void onDisable() {
+		PluginLock.lock();
+		try {
+			this.disable();
+		} finally {
+			PluginLock.unlock();
+		}
+	}
+
+	private void disable() {
 		// Wait for async tasks to complete:
 		SchedulerUtils.awaitAsyncTasksCompletion(
 				this,
@@ -572,7 +592,7 @@ public class SKShopkeepersPlugin extends JavaPlugin implements InternalShopkeepe
 		}
 
 		HandlerList.unregisterAll(this);
-		Bukkit.getScheduler().cancelTasks(this);
+		SchedulerUtils.cancelAllTasks(this);
 
 		InternalShopkeepersAPI.disable();
 		plugin = null;
@@ -650,6 +670,34 @@ public class SKShopkeepersPlugin extends JavaPlugin implements InternalShopkeepe
 
 		int shopkeeperUpdatedItems = 0;
 		for (AbstractShopkeeper shopkeeper : shopkeeperRegistry.getAllShopkeepers()) {
+			// Active shopkeepers may apply the updated items to their spawned shop object. This
+			// has to happen on the thread that owns the shopkeeper's chunk. If this is not the
+			// current thread, the shopkeeper's items are updated during the next tick of its
+			// region and are not included in the returned count.
+			ChunkCoords chunkCoords = shopkeeper.getLastChunkCoords();
+			World world = (chunkCoords != null) ? chunkCoords.getWorld() : null;
+			if (chunkCoords != null && world != null && shopkeeper.isActive()
+					&& !SchedulerUtils.isOwnedByCurrentRegion(
+							world,
+							chunkCoords.getChunkX(),
+							chunkCoords.getChunkZ()
+					)) {
+				SchedulerUtils.runRegionTaskLaterOrOmit(
+						this,
+						world,
+						chunkCoords.getChunkX(),
+						chunkCoords.getChunkZ(),
+						() -> {
+							if (!shopkeeper.isValid()) return;
+							if (shopkeeper.updateItems() > 0) {
+								shopkeeperStorage.save();
+							}
+						},
+						0L
+				);
+				continue;
+			}
+
 			shopkeeperUpdatedItems += shopkeeper.updateItems();
 		}
 		if (shopkeeperUpdatedItems > 0) {

@@ -35,6 +35,7 @@ import com.nisovin.shopkeepers.ui.editor.Button;
 import com.nisovin.shopkeepers.util.annotations.ReadWrite;
 import com.nisovin.shopkeepers.util.bukkit.EntityUtils;
 import com.nisovin.shopkeepers.util.bukkit.LocationUtils;
+import com.nisovin.shopkeepers.util.bukkit.SchedulerUtils;
 import com.nisovin.shopkeepers.util.bukkit.TextUtils;
 import com.nisovin.shopkeepers.util.bukkit.Ticks;
 import com.nisovin.shopkeepers.util.bukkit.WorldUtils;
@@ -243,13 +244,21 @@ public abstract class BaseEntityShopObject<E extends Entity>
 		// Disable AI:
 		this.cleanupAI();
 
-		// Remove metadata again:
-		ShopkeeperMetadata.remove(entity);
-
-		// Remove the entity (if it hasn't been removed already):
-		if (!entity.isDead()) {
-			entity.remove();
-		}
+		// Remove metadata again and remove the entity (if it hasn't been removed already):
+		// This has to happen on the thread that owns the entity. If this is not the current
+		// thread, e.g. when the shopkeeper is deleted via command from elsewhere, the entity is
+		// removed during its next tick.
+		Runnable removeEntity = () -> {
+			ShopkeeperMetadata.remove(entity);
+			if (!entity.isDead()) {
+				entity.remove();
+			}
+		};
+		SchedulerUtils.runEntityCleanupTask(
+				SKShopkeepersPlugin.getInstance(),
+				entity,
+				removeEntity
+		);
 
 		this.entity = null;
 	}

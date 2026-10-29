@@ -13,6 +13,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 
 import com.nisovin.shopkeepers.SKShopkeepersPlugin;
 import com.nisovin.shopkeepers.api.internal.util.Unsafe;
+import com.nisovin.shopkeepers.util.bukkit.EventUtils;
 import com.nisovin.shopkeepers.util.java.Validate;
 
 /**
@@ -56,7 +57,7 @@ public class EventDebugListener<E extends Event> implements Listener {
 					eventClass,
 					this,
 					priority,
-					executor,
+					EventUtils.lockedExecutor(executor),
 					SKShopkeepersPlugin.getInstance(),
 					false
 			);

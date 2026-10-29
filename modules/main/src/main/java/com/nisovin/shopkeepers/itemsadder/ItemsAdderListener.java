@@ -1,6 +1,5 @@
 package com.nisovin.shopkeepers.itemsadder;
 
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -20,6 +19,7 @@ import com.nisovin.shopkeepers.api.ui.UISession;
 import com.nisovin.shopkeepers.api.util.UnmodifiableItemStack;
 import com.nisovin.shopkeepers.config.Settings;
 import com.nisovin.shopkeepers.debug.DebugOptions;
+import com.nisovin.shopkeepers.util.bukkit.SchedulerUtils;
 import com.nisovin.shopkeepers.util.inventory.ItemUtils;
 import com.nisovin.shopkeepers.util.java.Validate;
 import com.nisovin.shopkeepers.util.logging.Log;
@@ -53,7 +53,7 @@ class ItemsAdderListener implements Listener {
 		updatePending = true;
 		// Updating the items aborts any currently active UI sessions, so this is not safe to be
 		// called from within an event handler:
-		Bukkit.getScheduler().runTask(plugin, () -> {
+		SchedulerUtils.runTaskOrOmit(plugin, () -> {
 			updatePending = false;
 			int updatedItems = plugin.updateItems();
 			Log.info("ItemsAdder loaded its items: Updated " + updatedItems + " stored items.");

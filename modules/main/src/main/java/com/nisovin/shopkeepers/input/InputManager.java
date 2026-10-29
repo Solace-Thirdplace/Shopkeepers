@@ -6,7 +6,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -18,6 +17,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import com.nisovin.shopkeepers.api.internal.util.Unsafe;
+import com.nisovin.shopkeepers.util.bukkit.EventUtils;
 import com.nisovin.shopkeepers.util.java.Box;
 import com.nisovin.shopkeepers.util.java.Validate;
 
@@ -77,7 +77,7 @@ public abstract class InputManager<@NonNull T> {
 	}
 
 	public void onEnable() {
-		Bukkit.getPluginManager().registerEvents(playerQuitListener, plugin);
+		EventUtils.registerEvents(playerQuitListener, plugin);
 	}
 
 	public void onDisable() {

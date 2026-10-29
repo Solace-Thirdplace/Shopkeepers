@@ -49,6 +49,18 @@ dependencies {
 	shaded libs.bstats.bukkit
 }
 
+// Compile against Paper's API first (like the compileWithPaper check): The region-aware schedulers
+// (Folia) are only available on Paper. Spigot-only API is still resolved from the regular compile
+// classpath.
+tasks.named('compileJava') {
+	classpath = configurations.paperCompileOnly + classpath
+}
+// The null analysis uses the Spigot API and its external annotations. The Paper-only scheduler
+// backend is only loaded reflectively.
+tasks.named('ecjAnalysis') {
+	exclude '**/util/bukkit/PaperSchedulerBackend.java'
+}
+
 processResources {
 	inputs.property 'pluginVersion', pluginVersion
 	inputs.property 'dboUrl', dboUrl

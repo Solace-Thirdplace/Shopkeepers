@@ -276,7 +276,13 @@ public final class UISessionManager {
 
 		Player player = uiSession.getPlayer();
 		this.endUISession(player, null);
-		player.closeInventory();
+		// The inventory has to be closed by the thread that owns the player. If this is not the
+		// current thread, the inventory is closed during the player's next tick, unless the player
+		// has opened another UI in the meantime:
+		SchedulerUtils.runEntityCleanupTask(plugin, player, () -> {
+			if (this.getUISession(player) != null) return;
+			player.closeInventory();
+		});
 	}
 
 	public void abortUISessions() {

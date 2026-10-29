@@ -207,7 +207,7 @@ public abstract class View implements UISession {
 		this.deactivateUI();
 
 		// This fails during plugin disable. However, all UIs will be closed anyway.
-		SchedulerUtils.runTaskOrOmit(ShopkeepersPlugin.getInstance(), () -> {
+		SchedulerUtils.runEntityTaskOrOmit(ShopkeepersPlugin.getInstance(), this.getPlayer(), () -> {
 			if (!this.isValid()) return;
 
 			this.close();
@@ -234,7 +234,7 @@ public abstract class View implements UISession {
 		this.deactivateUI();
 
 		// This fails during plugin disable. However, all UIs will be closed anyway.
-		SchedulerUtils.runTaskOrOmit(ShopkeepersPlugin.getInstance(), () -> {
+		SchedulerUtils.runEntityTaskOrOmit(ShopkeepersPlugin.getInstance(), this.getPlayer(), () -> {
 			if (!this.isValid()) return;
 			this.abort();
 			if (task != null) {

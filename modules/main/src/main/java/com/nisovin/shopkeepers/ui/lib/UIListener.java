@@ -72,7 +72,7 @@ class UIListener implements Listener {
 	}
 
 	void onEnable() {
-		Bukkit.getPluginManager().registerEvents(this, plugin);
+		EventUtils.registerEvents(this, plugin);
 		DEFAULT_INVENTORY_EVENTS.forEach(this::registerEventType);
 	}
 
@@ -106,7 +106,9 @@ class UIListener implements Listener {
 				registrationClass,
 				this,
 				EventPriority.LOW,
-				EventUtils.eventExecutor(InventoryEvent.class, this::onInventoryEventEarly),
+				EventUtils.lockedExecutor(
+						EventUtils.eventExecutor(InventoryEvent.class, this::onInventoryEventEarly)
+				),
 				plugin,
 				false
 		);
@@ -117,7 +119,9 @@ class UIListener implements Listener {
 				registrationClass,
 				this,
 				EventPriority.HIGH,
-				EventUtils.eventExecutor(InventoryEvent.class, this::onInventoryEventLate),
+				EventUtils.lockedExecutor(
+						EventUtils.eventExecutor(InventoryEvent.class, this::onInventoryEventLate)
+				),
 				plugin,
 				false
 		);
