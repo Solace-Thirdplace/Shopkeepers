@@ -117,6 +117,20 @@ public final class UISessionManager {
 		String uiIdentifier = uiType.getIdentifier();
 		String playerName = player.getName();
 
+		// The player's inventory view can only be opened and closed on the thread that owns the
+		// player. On Folia, a request can come from another region's thread or from the global
+		// region thread (e.g. /shopkeeper remote run by the console or by a player elsewhere). The
+		// request is then handled during the player's next tick.
+		if (!SchedulerUtils.isOwnedByCurrentRegion(player)) {
+			Log.debug(() -> "Handling the request to open UI '" + uiIdentifier + "' for player "
+					+ playerName + " on the player's thread.");
+			return SchedulerUtils.runEntityTaskOrOmit(
+					plugin,
+					player,
+					() -> this.requestUI(viewProvider, player, silentRequest, uiState)
+			) != null;
+		}
+
 		if (!player.isValid()) {
 			Log.debug(() -> "Player " + playerName + " cannot open UI '" + uiIdentifier
 					+ "': Player not connected.");
