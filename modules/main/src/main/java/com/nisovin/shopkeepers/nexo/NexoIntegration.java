@@ -100,6 +100,13 @@ public class NexoIntegration {
 		return stockPredicate(offerItem).test(item);
 	}
 
+	/**
+	 * @return <code>true</code> if the Nexo integration is active
+	 */
+	static boolean isActive() {
+		return matcher != null;
+	}
+
 	private final SKShopkeepersPlugin plugin;
 	private @Nullable NexoListener listener = null;
 

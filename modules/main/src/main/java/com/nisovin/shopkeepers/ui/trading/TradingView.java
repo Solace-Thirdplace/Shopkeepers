@@ -36,6 +36,7 @@ import com.nisovin.shopkeepers.config.Settings;
 import com.nisovin.shopkeepers.debug.Debug;
 import com.nisovin.shopkeepers.debug.DebugOptions;
 import com.nisovin.shopkeepers.lang.Messages;
+import com.nisovin.shopkeepers.nexo.NexoTradeCosts;
 import com.nisovin.shopkeepers.ui.lib.UIState;
 import com.nisovin.shopkeepers.ui.lib.View;
 import com.nisovin.shopkeepers.util.annotations.ReadOnly;
@@ -368,6 +369,7 @@ public class TradingView extends View {
 		Player player = this.getPlayer();
 		Shopkeeper shopkeeper = this.getShopkeeperNonNull();
 
+		NexoTradeCosts.undoNexoRefusal(clickEvent);
 		if (clickEvent.isCancelled()) {
 			Log.debug(() -> this.getContext().getLogPrefix()
 					+ "Some plugin has cancelled the trading UI click of player "
