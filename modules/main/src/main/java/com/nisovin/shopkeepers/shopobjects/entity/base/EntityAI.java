@@ -21,7 +21,6 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
-import org.bukkit.scheduler.BukkitTask;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import com.nisovin.shopkeepers.SKShopkeepersPlugin;
@@ -30,7 +29,10 @@ import com.nisovin.shopkeepers.api.util.ChunkCoords;
 import com.nisovin.shopkeepers.compat.Compat;
 import com.nisovin.shopkeepers.config.Settings;
 import com.nisovin.shopkeepers.util.bukkit.EntityUtils;
+import com.nisovin.shopkeepers.util.bukkit.EventUtils;
 import com.nisovin.shopkeepers.util.bukkit.MutableChunkCoords;
+import com.nisovin.shopkeepers.util.bukkit.SchedulerUtils;
+import com.nisovin.shopkeepers.util.bukkit.TaskHandle;
 import com.nisovin.shopkeepers.util.bukkit.WorldUtils;
 import com.nisovin.shopkeepers.util.java.CyclicCounter;
 import com.nisovin.shopkeepers.util.java.RateLimiter;
@@ -189,7 +191,7 @@ public class EntityAI implements Listener {
 	// Index for fast removal: Shop object -> EntityData
 	private final Map<BaseEntityShopObject<?>, EntityData> shopObjects = new HashMap<>();
 
-	private @Nullable BukkitTask aiTask = null;
+	private @Nullable TaskHandle aiTask = null;
 	private boolean currentlyRunning = false;
 
 	// Statistics:
@@ -219,7 +221,7 @@ public class EntityAI implements Listener {
 		customGravityEnabled = _isCustomGravityEnabled();
 
 		// Register listener:
-		Bukkit.getPluginManager().registerEvents(this, plugin);
+		EventUtils.registerEvents(this, plugin);
 
 		// Start task:
 		this.startTask();
@@ -380,7 +382,7 @@ public class EntityAI implements Listener {
 
 		// Start AI task:
 		int tickPeriod = Settings.entityBehaviorTickPeriod;
-		aiTask = Bukkit.getScheduler().runTaskTimer(
+		aiTask = SchedulerUtils.runTaskTimerOrOmit(
 				plugin,
 				new TickTask(),
 				tickPeriod,
@@ -493,7 +495,7 @@ public class EntityAI implements Listener {
 
 	private void activateNearbyChunksDelayed(Player player) {
 		if (!player.isOnline()) return; // Player is no longer online
-		Bukkit.getScheduler().runTask(plugin, new ActivateNearbyChunksDelayedTask(player));
+		SchedulerUtils.runTaskOrOmit(plugin, new ActivateNearbyChunksDelayedTask(player));
 	}
 
 	private class ActivateNearbyChunksDelayedTask implements Runnable {
@@ -569,7 +571,26 @@ public class EntityAI implements Listener {
 			return;
 		}
 
-		chunks.values().forEach(this::processEntities);
+		// The entities of each chunk are processed by the thread that owns the chunk. On servers
+		// with a single main thread, this is the current thread.
+		new ArrayList<>(chunks.values()).forEach(chunkData -> {
+			if (!chunkData.activeGravity && !chunkData.activeAI) {
+				// There is no need to process the chunk's entities:
+				return;
+			}
+
+			ChunkCoords chunkCoords = chunkData.chunkCoords;
+			World world = chunkCoords.getWorld();
+			if (world == null) return; // The world is no longer loaded
+
+			SchedulerUtils.runInRegionOrOmit(
+					plugin,
+					world,
+					chunkCoords.getChunkX(),
+					chunkCoords.getChunkZ(),
+					() -> this.processEntities(chunkData)
+			);
+		});
 	}
 
 	private void processEntities(ChunkData chunkData) {
@@ -579,7 +600,23 @@ public class EntityAI implements Listener {
 			return;
 		}
 
+		// Region tasks that run after the AI task has finished track their own timings:
+		boolean separateTask = !currentlyRunning;
+		if (separateTask) {
+			currentlyRunning = true;
+			totalTimings.start();
+			gravityTimings.startPaused();
+			aiTimings.startPaused();
+		}
+
 		chunkData.entities.forEach(this::processEntity);
+
+		if (separateTask) {
+			totalTimings.stop();
+			gravityTimings.stop();
+			aiTimings.stop();
+			currentlyRunning = false;
+		}
 	}
 
 	private void processEntity(EntityData entityData) {
@@ -589,6 +626,9 @@ public class EntityAI implements Listener {
 		// Unexpected: The shop object is supposed to unregister itself from the AI system when it
 		// despawns its entity.
 		if (entity == null) return;
+
+		// The entity might have moved into a chunk that is owned by another thread:
+		if (!SchedulerUtils.isOwnedByCurrentRegion(entity)) return;
 
 		// Note: Checking entity.isValid() is relatively heavy (compared to other operations) due to
 		// a chunk lookup. The entity's entry is already immediately getting removed as reaction to

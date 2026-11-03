@@ -27,6 +27,7 @@ import com.nisovin.shopkeepers.lang.Messages;
 import com.nisovin.shopkeepers.shopkeeper.AbstractShopkeeper;
 import com.nisovin.shopkeepers.text.ClickEventText.Action;
 import com.nisovin.shopkeepers.text.Text;
+import com.nisovin.shopkeepers.util.bukkit.EventUtils;
 import com.nisovin.shopkeepers.util.bukkit.PermissionUtils;
 import com.nisovin.shopkeepers.util.bukkit.TextUtils;
 import com.nisovin.shopkeepers.util.inventory.ItemUtils;
@@ -195,7 +196,7 @@ public class TradeNotifications implements Listener {
 		this.enabled = (Settings.notifyPlayersAboutTrades || Settings.notifyShopMembersAboutTrades);
 		if (!enabled) return;
 
-		Bukkit.getPluginManager().registerEvents(this, plugin);
+		EventUtils.registerEvents(this, plugin);
 		userPreferences.onEnable();
 		tradeMerger.onEnable();
 	}

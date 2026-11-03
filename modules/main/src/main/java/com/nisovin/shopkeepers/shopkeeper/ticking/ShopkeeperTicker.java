@@ -8,11 +8,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.World;
 
 import com.nisovin.shopkeepers.SKShopkeepersPlugin;
+import com.nisovin.shopkeepers.api.util.ChunkCoords;
 import com.nisovin.shopkeepers.debug.DebugOptions;
 import com.nisovin.shopkeepers.shopkeeper.AbstractShopkeeper;
+import com.nisovin.shopkeepers.util.bukkit.SchedulerUtils;
 import com.nisovin.shopkeepers.util.java.CyclicCounter;
 import com.nisovin.shopkeepers.util.java.Validate;
 import com.nisovin.shopkeepers.util.logging.Log;
@@ -221,12 +223,12 @@ public class ShopkeeperTicker {
 		new ShopkeeperTickTask().start();
 	}
 
-	private final class ShopkeeperTickTask extends BukkitRunnable {
+	private final class ShopkeeperTickTask implements Runnable {
 
 		private static final int PERIOD = TICKING_PERIOD_TICKS / TICKING_GROUPS;
 
 		void start() {
-			this.runTaskTimer(plugin, PERIOD, PERIOD);
+			SchedulerUtils.runTaskTimerOrOmit(plugin, this, PERIOD, PERIOD);
 		}
 
 		@Override
@@ -236,11 +238,53 @@ public class ShopkeeperTicker {
 	}
 
 	private void tickShopkeepers() {
+		TickingGroup tickingGroup = this.getTickingGroup(activeTickingGroup.getValue());
+
+		// Update the active ticking group:
+		activeTickingGroup.getAndIncrement();
+
+		// Each shopkeeper is ticked by the thread that owns its chunk (on servers with a single
+		// main thread, this is the current thread). We group the shopkeepers by chunk to only
+		// require one task per chunk:
+		Map<ChunkCoords, List<AbstractShopkeeper>> shopkeepersByChunk = new LinkedHashMap<>();
+		List<AbstractShopkeeper> unlocatedShopkeepers = new ArrayList<>();
+		tickingGroup.getShopkeepers().forEach(shopkeeper -> {
+			ChunkCoords chunkCoords = shopkeeper.getLastChunkCoords();
+			if (chunkCoords == null) {
+				unlocatedShopkeepers.add(shopkeeper);
+			} else {
+				shopkeepersByChunk.computeIfAbsent(chunkCoords, key -> new ArrayList<>())
+						.add(shopkeeper);
+			}
+		});
+
+		if (!unlocatedShopkeepers.isEmpty()) {
+			this.tickShopkeepers(unlocatedShopkeepers);
+		}
+
+		shopkeepersByChunk.forEach((chunkCoords, shopkeepers) -> {
+			World world = chunkCoords.getWorld();
+			if (world == null) {
+				// The world is no longer loaded: There is no world state to access.
+				this.tickShopkeepers(shopkeepers);
+				return;
+			}
+
+			SchedulerUtils.runInRegionOrOmit(
+					plugin,
+					world,
+					chunkCoords.getChunkX(),
+					chunkCoords.getChunkZ(),
+					() -> this.tickShopkeepers(shopkeepers)
+			);
+		});
+	}
+
+	private void tickShopkeepers(Collection<? extends AbstractShopkeeper> shopkeepers) {
 		dirty = false;
 
 		currentlyTicking = true;
-		TickingGroup tickingGroup = this.getTickingGroup(activeTickingGroup.getValue());
-		tickingGroup.getShopkeepers().forEach(this::tickShopkeeper);
+		shopkeepers.forEach(this::tickShopkeeper);
 		currentlyTicking = false;
 
 		// Process pending shopkeeper ticking registration changes:
@@ -258,9 +302,6 @@ public class ShopkeeperTicker {
 		if (dirty) {
 			plugin.getShopkeeperStorage().saveDelayed();
 		}
-
-		// Update the active ticking group:
-		activeTickingGroup.getAndIncrement();
 	}
 
 	private void tickShopkeeper(AbstractShopkeeper shopkeeper) {

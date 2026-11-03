@@ -5,7 +5,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
@@ -88,7 +87,7 @@ class BaseEntityShopListener implements Listener {
 	}
 
 	void onEnable() {
-		Bukkit.getPluginManager().registerEvents(this, plugin);
+		EventUtils.registerEvents(this, plugin);
 		// Ensure that our interact event handlers are always executed first, even after plugin
 		// reloads:
 		// In order to not change the order among the already registered event handlers of our own

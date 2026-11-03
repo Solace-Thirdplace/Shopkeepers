@@ -13,6 +13,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 import com.nisovin.shopkeepers.api.internal.util.Unsafe;
 import com.nisovin.shopkeepers.text.Text;
+import com.nisovin.shopkeepers.util.bukkit.PluginLock;
 import com.nisovin.shopkeepers.util.java.Validate;
 
 /**
@@ -89,7 +90,7 @@ public abstract class BaseCommand extends Command implements CommandExecutor, Ta
 			@NonNull String[] args
 	) {
 		CommandInput input = new CommandInput(sender, this, commandAlias, args);
-		this.handleCommand(input);
+		PluginLock.run(() -> this.handleCommand(input));
 		// We completely handle the command, including printing usage or help on syntax failure:
 		return true;
 	}
@@ -102,6 +103,6 @@ public abstract class BaseCommand extends Command implements CommandExecutor, Ta
 			@NonNull String[] args
 	) {
 		CommandInput input = new CommandInput(sender, this, commandAlias, args);
-		return Unsafe.cast(this.handleTabCompletion(input));
+		return Unsafe.cast(PluginLock.call(() -> this.handleTabCompletion(input)));
 	}
 }

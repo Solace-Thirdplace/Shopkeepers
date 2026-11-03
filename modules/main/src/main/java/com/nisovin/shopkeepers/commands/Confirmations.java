@@ -3,7 +3,6 @@ package com.nisovin.shopkeepers.commands;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ProxiedCommandSender;
 import org.bukkit.entity.Player;
@@ -11,6 +10,8 @@ import org.bukkit.plugin.Plugin;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import com.nisovin.shopkeepers.lang.Messages;
+import com.nisovin.shopkeepers.util.bukkit.SchedulerUtils;
+import com.nisovin.shopkeepers.util.bukkit.TaskHandle;
 import com.nisovin.shopkeepers.util.bukkit.TextUtils;
 import com.nisovin.shopkeepers.util.java.Validate;
 
@@ -19,15 +20,17 @@ public class Confirmations {
 	private static class PendingConfirmation {
 
 		private final Runnable action;
-		private final int taskId;
+		private final @Nullable TaskHandle task;
 
-		public PendingConfirmation(Runnable action, int taskId) {
-			this.taskId = taskId;
+		public PendingConfirmation(Runnable action, @Nullable TaskHandle task) {
+			this.task = task;
 			this.action = action;
 		}
 
-		public int getTaskId() {
-			return taskId;
+		public void cancelTask() {
+			if (task != null) {
+				task.cancel();
+			}
 		}
 
 		public Runnable getAction() {
@@ -85,18 +88,18 @@ public class Confirmations {
 		Validate.notNull(action, "action is null");
 		Validate.isTrue(timeoutTicks > 0, "timeoutTicks has to be positive");
 
-		int taskId = Bukkit.getScheduler().runTaskLater(plugin, () -> {
+		TaskHandle task = SchedulerUtils.runTaskLaterOrOmit(plugin, () -> {
 			this.endConfirmation(sender);
 			TextUtils.sendMessage(sender, Messages.confirmationExpired);
-		}, timeoutTicks).getTaskId();
+		}, timeoutTicks);
 
 		PendingConfirmation previousPendingConfirmation = pendingConfirmations.put(
 				this.getSenderKey(sender),
-				new PendingConfirmation(action, taskId)
+				new PendingConfirmation(action, task)
 		);
 		if (previousPendingConfirmation != null) {
 			// Cancel the previous pending confirmation task:
-			Bukkit.getScheduler().cancelTask(previousPendingConfirmation.getTaskId());
+			previousPendingConfirmation.cancelTask();
 		}
 	}
 
@@ -106,7 +109,7 @@ public class Confirmations {
 		PendingConfirmation pendingConfirmation = pendingConfirmations.remove(this.getSenderKey(sender));
 		if (pendingConfirmation != null) {
 			// End confirmation task:
-			Bukkit.getScheduler().cancelTask(pendingConfirmation.getTaskId());
+			pendingConfirmation.cancelTask();
 
 			// Return action:
 			return pendingConfirmation.getAction();

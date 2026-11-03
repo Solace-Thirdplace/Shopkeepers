@@ -2,7 +2,6 @@ package com.nisovin.shopkeepers.shopobjects.living;
 
 import java.util.Collection;
 
-import org.bukkit.Bukkit;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -29,6 +28,7 @@ import com.nisovin.shopkeepers.api.internal.util.Unsafe;
 import com.nisovin.shopkeepers.api.shopobjects.ShopObject;
 import com.nisovin.shopkeepers.shopkeeper.AbstractShopkeeper;
 import com.nisovin.shopkeepers.shopkeeper.registry.SKShopkeeperRegistry;
+import com.nisovin.shopkeepers.util.bukkit.EventUtils;
 import com.nisovin.shopkeepers.util.logging.Log;
 
 /**
@@ -45,7 +45,7 @@ class LivingEntityShopListener implements Listener {
 	}
 
 	void onEnable() {
-		Bukkit.getPluginManager().registerEvents(this, plugin);
+		EventUtils.registerEvents(this, plugin);
 	}
 
 	void onDisable() {

@@ -4,7 +4,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
@@ -135,7 +134,7 @@ public class InteractionInput extends InputManager<Event> implements Listener {
 	@Override
 	public void onEnable() {
 		super.onEnable();
-		Bukkit.getPluginManager().registerEvents(this, plugin);
+		EventUtils.registerEvents(this, plugin);
 
 		// Ensure that our event handlers are always executed first:
 		// This also ensures that our event handlers are executed before other event handlers of the

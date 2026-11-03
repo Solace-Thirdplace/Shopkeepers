@@ -1,4 +1,4 @@
-package com.nisovin.shopkeepers.itemsadder;
+package com.nisovin.shopkeepers.nexo;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -18,41 +18,36 @@ import com.google.common.collect.Multimap;
 import com.nisovin.shopkeepers.api.internal.util.Unsafe;
 
 /**
- * Item comparison helpers behind the ItemsAdder stock matching.
+ * Item comparison helpers behind the Nexo stock matching.
  * <p>
- * These deliberately do not reference any ItemsAdder API classes, so that they can be preloaded and
- * tested without the ItemsAdder plugin being present.
+ * These do not reference any Nexo API classes, so that they can be tested without the Nexo plugin
+ * being present.
  * <p>
- * ItemsAdder items are only loosely coupled to their item configurations, and ItemsAdder recreates
- * parts of an item every time it (re)loads its configurations. Two item stacks that represent the
- * same ItemsAdder item can therefore differ in ways that are not meaningful:
+ * Nexo items are only loosely coupled to their item configurations, and a freshly built copy of an
+ * item can differ from older copies. Two item stacks that represent the same Nexo item can
+ * therefore differ in ways that are not meaningful:
  * <ul>
- * <li>Their {@link ItemMeta#getAttributeModifiers() attribute modifiers} carry freshly generated
- * ids, even when the modifiers are otherwise identical.
+ * <li>Their {@link ItemMeta#getAttributeModifiers() attribute modifiers} may carry freshly
+ * generated ids, even when the modifiers are otherwise identical.
  * <li>Their display related data (name, lore, item model, custom model data, and so on) reflects
  * whichever version of the item configuration was current when the item stack was created.
  * </ul>
  * Everything else is still compared: enchantments, stored enchantments, durability, the unbreakable
  * flag, and the custom tags of other plugins.
  */
-public final class ItemsAdderStockMatching {
+public final class NexoStockMatching {
 
 	/**
-	 * The namespace that ItemsAdder uses for its own custom tags.
-	 */
-	private static final String ITEMS_ADDER_KEY_NAMESPACE = "itemsadder";
-
-	/**
-	 * Checks whether the two given items agree on everything that the ItemsAdder item configuration
+	 * Checks whether the two given items agree on everything that the Nexo item configuration
 	 * does not define itself.
 	 * <p>
-	 * Both items are expected to have already been identified as the same ItemsAdder item.
+	 * Both items are expected to have already been identified as the same Nexo item.
 	 *
 	 * @param itemMeta1
 	 *            the meta of the first item, can be <code>null</code>
 	 * @param itemMeta2
 	 *            the meta of the second item, can be <code>null</code>
-	 * @return <code>true</code> if the items only differ in data that ItemsAdder defines itself
+	 * @return <code>true</code> if the items only differ in data that Nexo defines itself
 	 */
 	public static boolean customExtrasMatch(
 			@Nullable ItemMeta itemMeta1,
@@ -62,8 +57,8 @@ public final class ItemsAdderStockMatching {
 			return itemMeta1 == itemMeta2;
 		}
 
-		// Enchantments are not part of an ItemsAdder item configuration, so an enchanted copy of an
-		// item is intentionally not interchangeable with an unenchanted one:
+		// Enchantments that a player added are not part of the item configuration, so an enchanted
+		// copy of an item is intentionally not interchangeable with an unenchanted one:
 		if (!itemMeta1.getEnchants().equals(itemMeta2.getEnchants())) return false;
 
 		if (itemMeta1 instanceof EnchantmentStorageMeta storage1) {
@@ -88,8 +83,8 @@ public final class ItemsAdderStockMatching {
 	/**
 	 * Checks whether the custom tags of other plugins match between the two given item metas.
 	 * <p>
-	 * ItemsAdder's own tags are ignored: They identify the item, which the caller has already
-	 * verified, and ItemsAdder is free to change them between versions.
+	 * Nexo's own tags are ignored: They identify the item, which the caller has already verified,
+	 * and Nexo is free to change them between versions.
 	 *
 	 * @param itemMeta1
 	 *            the meta of the first item, not <code>null</code>
@@ -102,25 +97,25 @@ public final class ItemsAdderStockMatching {
 		PersistentDataContainer tags2 = itemMeta2.getPersistentDataContainer();
 		if (tags1.isEmpty() && tags2.isEmpty()) return true;
 
-		return withoutItemsAdderTags(itemMeta1).equals(withoutItemsAdderTags(itemMeta2));
+		return withoutNexoTags(itemMeta1).equals(withoutNexoTags(itemMeta2));
 	}
 
 	/**
-	 * Gets a copy of the given item meta's {@link PersistentDataContainer} with ItemsAdder's own
-	 * tags removed.
+	 * Gets a copy of the given item meta's {@link PersistentDataContainer} with Nexo's own tags
+	 * removed.
 	 *
 	 * @param itemMeta
 	 *            the item meta, not <code>null</code>
 	 * @return the copied and filtered custom tags
 	 */
-	private static PersistentDataContainer withoutItemsAdderTags(ItemMeta itemMeta) {
+	private static PersistentDataContainer withoutNexoTags(ItemMeta itemMeta) {
 		// The meta is copied so that we do not modify the caller's item:
 		ItemMeta itemMetaCopy = itemMeta.clone();
 		PersistentDataContainer tags = itemMetaCopy.getPersistentDataContainer();
 		// The key set is copied, because we remove entries while iterating it:
 		for (NamespacedKey key : new ArrayList<>(tags.getKeys())) {
 			assert key != null;
-			if (key.getNamespace().equals(ITEMS_ADDER_KEY_NAMESPACE)) {
+			if (key.getNamespace().equals(NexoItemIds.NEXO_NAMESPACE)) {
 				tags.remove(key);
 			}
 		}
@@ -132,8 +127,8 @@ public final class ItemsAdderStockMatching {
 	 * ids, and if so, replaces the attribute modifiers of the second item meta with those of the
 	 * first one.
 	 * <p>
-	 * ItemsAdder generates fresh modifier ids whenever it (re)loads its item configurations. Without
-	 * this normalization, an item that carries an attribute modifier never compares equal to a
+	 * Freshly built item copies can carry freshly generated modifier ids. Without this
+	 * normalization, an item that carries an attribute modifier might never compare equal to a
 	 * freshly created copy of itself, which would cause it to be needlessly rewritten on every
 	 * server start.
 	 *
@@ -203,6 +198,6 @@ public final class ItemsAdderStockMatching {
 				&& modifier1.getSlotGroup().equals(modifier2.getSlotGroup());
 	}
 
-	private ItemsAdderStockMatching() {
+	private NexoStockMatching() {
 	}
 }

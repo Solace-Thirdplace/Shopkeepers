@@ -1,6 +1,5 @@
 package com.nisovin.shopkeepers.shopobjects.living;
 
-import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
@@ -9,6 +8,7 @@ import org.bukkit.event.entity.PigZapEvent;
 
 import com.nisovin.shopkeepers.SKShopkeepersPlugin;
 import com.nisovin.shopkeepers.shopkeeper.registry.SKShopkeeperRegistry;
+import com.nisovin.shopkeepers.util.bukkit.EventUtils;
 
 /**
  * Conditionally registered PigZapEvent listener. Not used in Paper 26.2+.
@@ -24,7 +24,7 @@ class PigZapListener implements Listener {
 	}
 
 	void onEnable() {
-		Bukkit.getPluginManager().registerEvents(this, plugin);
+		EventUtils.registerEvents(this, plugin);
 	}
 
 	void onDisable() {

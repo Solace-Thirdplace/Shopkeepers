@@ -9,10 +9,10 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 import org.bukkit.Bukkit;
+import org.bukkit.World;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
-import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -23,6 +23,7 @@ import com.nisovin.shopkeepers.api.internal.InternalShopkeepersPlugin;
 import com.nisovin.shopkeepers.api.internal.util.Unsafe;
 import com.nisovin.shopkeepers.api.shopkeeper.ShopCreationData;
 import com.nisovin.shopkeepers.api.shopkeeper.ShopType;
+import com.nisovin.shopkeepers.api.util.ChunkCoords;
 import com.nisovin.shopkeepers.commands.Commands;
 import com.nisovin.shopkeepers.compat.Compat;
 import com.nisovin.shopkeepers.compat.MC_1_21_11;
@@ -40,11 +41,11 @@ import com.nisovin.shopkeepers.dependencies.worldguard.WorldGuardDependency;
 import com.nisovin.shopkeepers.input.chat.ChatInput;
 import com.nisovin.shopkeepers.input.interaction.InteractionInput;
 import com.nisovin.shopkeepers.internals.SKApiInternals;
-import com.nisovin.shopkeepers.itemsadder.ItemsAdderIntegration;
 import com.nisovin.shopkeepers.lang.Messages;
 import com.nisovin.shopkeepers.metrics.PluginMetrics;
 import com.nisovin.shopkeepers.moving.ShopkeeperMoving;
 import com.nisovin.shopkeepers.naming.ShopkeeperNaming;
+import com.nisovin.shopkeepers.nexo.NexoIntegration;
 import com.nisovin.shopkeepers.playershops.PlayerShops;
 import com.nisovin.shopkeepers.shopcreation.ShopkeeperCreation;
 import com.nisovin.shopkeepers.shopkeeper.AbstractShopType;
@@ -72,6 +73,8 @@ import com.nisovin.shopkeepers.trading.commandtrading.CommandTrading;
 import com.nisovin.shopkeepers.ui.SKDefaultUITypes;
 import com.nisovin.shopkeepers.ui.SKUIRegistry;
 import com.nisovin.shopkeepers.ui.SKUISystem;
+import com.nisovin.shopkeepers.util.bukkit.EventUtils;
+import com.nisovin.shopkeepers.util.bukkit.PluginLock;
 import com.nisovin.shopkeepers.util.bukkit.SchedulerUtils;
 import com.nisovin.shopkeepers.util.java.ClassUtils;
 import com.nisovin.shopkeepers.util.java.Validate;
@@ -87,8 +90,6 @@ public class SKShopkeepersPlugin extends JavaPlugin implements InternalShopkeepe
 					// Skip classes that interact with optional dependencies:
 					"com.nisovin.shopkeepers.dependencies.worldguard.WorldGuardDependency$Internal",
 					"com.nisovin.shopkeepers.dependencies.citizens.CitizensUtils$Internal",
-					"com.nisovin.shopkeepers.itemsadder.ItemsAdderListener",
-					"com.nisovin.shopkeepers.itemsadder.ItemsAdderItemMatcher",
 					"com.nisovin.shopkeepers.shopobjects.citizens.CitizensShopkeeperTrait",
 					"com.nisovin.shopkeepers.spigot.text.SpigotText$Internal"
 			))
@@ -147,8 +148,7 @@ public class SKShopkeepersPlugin extends JavaPlugin implements InternalShopkeepe
 	private final InteractionInput interactionInput = new InteractionInput(Unsafe.initialized(this));
 
 	private final CommandTrading commandTrading = new CommandTrading(Unsafe.initialized(this));
-	private final ItemsAdderIntegration itemsAdderIntegration = new ItemsAdderIntegration(
-			Unsafe.initialized(this));
+	private final NexoIntegration nexoIntegration = new NexoIntegration(Unsafe.initialized(this));
 	private final TradeLoggers tradeLoggers = new TradeLoggers(Unsafe.initialized(this));
 	private final TradeNotifications tradeNotifications = new TradeNotifications(
 			Unsafe.initialized(this)
@@ -296,6 +296,15 @@ public class SKShopkeepersPlugin extends JavaPlugin implements InternalShopkeepe
 
 	@Override
 	public void onEnable() {
+		PluginLock.lock();
+		try {
+			this.enable();
+		} finally {
+			PluginLock.unlock();
+		}
+	}
+
+	private void enable() {
 		assert Log.getLogger() != null; // Log should already have been set up
 		// Plugin instance and API might already have been set during onLoad:
 		boolean alreadySetUp = true;
@@ -395,8 +404,7 @@ public class SKShopkeepersPlugin extends JavaPlugin implements InternalShopkeepe
 		removeShopOnContainerBreak.onEnable();
 
 		// Register events:
-		PluginManager pm = Bukkit.getPluginManager();
-		pm.registerEvents(new PlayerJoinQuitListener(this), this);
+		EventUtils.registerEvents(new PlayerJoinQuitListener(this), this);
 		new TradingCountListener(this).onEnable();
 
 		// DEFAULT SHOP OBJECT TYPES
@@ -463,8 +471,8 @@ public class SKShopkeepersPlugin extends JavaPlugin implements InternalShopkeepe
 
 		commandTrading.onEnable();
 
-		// ItemsAdder integration:
-		itemsAdderIntegration.onEnable();
+		// Nexo integration:
+		nexoIntegration.onEnable();
 
 		// Trade loggers:
 		tradeLoggers.onEnable();
@@ -484,6 +492,15 @@ public class SKShopkeepersPlugin extends JavaPlugin implements InternalShopkeepe
 
 	@Override
 	public void onDisable() {
+		PluginLock.lock();
+		try {
+			this.disable();
+		} finally {
+			PluginLock.unlock();
+		}
+	}
+
+	private void disable() {
 		// Wait for async tasks to complete:
 		SchedulerUtils.awaitAsyncTasksCompletion(
 				this,
@@ -541,8 +558,8 @@ public class SKShopkeepersPlugin extends JavaPlugin implements InternalShopkeepe
 
 		commandTrading.onDisable();
 
-		// ItemsAdder integration:
-		itemsAdderIntegration.onDisable();
+		// Nexo integration:
+		nexoIntegration.onDisable();
 
 		// Trade loggers:
 		tradeLoggers.onDisable();
@@ -572,7 +589,7 @@ public class SKShopkeepersPlugin extends JavaPlugin implements InternalShopkeepe
 		}
 
 		HandlerList.unregisterAll(this);
-		Bukkit.getScheduler().cancelTasks(this);
+		SchedulerUtils.cancelAllTasks(this);
 
 		InternalShopkeepersAPI.disable();
 		plugin = null;
@@ -650,6 +667,34 @@ public class SKShopkeepersPlugin extends JavaPlugin implements InternalShopkeepe
 
 		int shopkeeperUpdatedItems = 0;
 		for (AbstractShopkeeper shopkeeper : shopkeeperRegistry.getAllShopkeepers()) {
+			// Active shopkeepers may apply the updated items to their spawned shop object. This
+			// has to happen on the thread that owns the shopkeeper's chunk. If this is not the
+			// current thread, the shopkeeper's items are updated during the next tick of its
+			// region and are not included in the returned count.
+			ChunkCoords chunkCoords = shopkeeper.getLastChunkCoords();
+			World world = (chunkCoords != null) ? chunkCoords.getWorld() : null;
+			if (chunkCoords != null && world != null && shopkeeper.isActive()
+					&& !SchedulerUtils.isOwnedByCurrentRegion(
+							world,
+							chunkCoords.getChunkX(),
+							chunkCoords.getChunkZ()
+					)) {
+				SchedulerUtils.runRegionTaskLaterOrOmit(
+						this,
+						world,
+						chunkCoords.getChunkX(),
+						chunkCoords.getChunkZ(),
+						() -> {
+							if (!shopkeeper.isValid()) return;
+							if (shopkeeper.updateItems() > 0) {
+								shopkeeperStorage.save();
+							}
+						},
+						0L
+				);
+				continue;
+			}
+
 			shopkeeperUpdatedItems += shopkeeper.updateItems();
 		}
 		if (shopkeeperUpdatedItems > 0) {

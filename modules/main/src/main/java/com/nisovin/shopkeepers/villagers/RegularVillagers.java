@@ -1,10 +1,10 @@
 package com.nisovin.shopkeepers.villagers;
 
-import org.bukkit.Bukkit;
 import org.bukkit.event.HandlerList;
 
 import com.nisovin.shopkeepers.SKShopkeepersPlugin;
 import com.nisovin.shopkeepers.config.Settings;
+import com.nisovin.shopkeepers.util.bukkit.EventUtils;
 import com.nisovin.shopkeepers.util.java.Validate;
 
 /**
@@ -26,12 +26,12 @@ public class RegularVillagers {
 	}
 
 	public void onEnable() {
-		Bukkit.getPluginManager().registerEvents(villagerInteractionListener, plugin);
+		EventUtils.registerEvents(villagerInteractionListener, plugin);
 		if (Settings.blockVillagerSpawns || Settings.blockWanderingTraderSpawns) {
-			Bukkit.getPluginManager().registerEvents(blockVillagerSpawnListener, plugin);
+			EventUtils.registerEvents(blockVillagerSpawnListener, plugin);
 		}
 		if (Settings.disableZombieVillagerCuring) {
-			Bukkit.getPluginManager().registerEvents(blockZombieVillagerCuringListener, plugin);
+			EventUtils.registerEvents(blockZombieVillagerCuringListener, plugin);
 		}
 	}
 

@@ -11,9 +11,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import com.nisovin.shopkeepers.api.shopkeeper.TradingRecipe;
 import com.nisovin.shopkeepers.api.shopkeeper.offers.TradeOffer;
 import com.nisovin.shopkeepers.api.shopkeeper.player.trade.TradingPlayerShopkeeper;
-import com.nisovin.shopkeepers.itemsadder.ItemsAdderIntegration;
 import com.nisovin.shopkeepers.api.ui.DefaultUITypes;
 import com.nisovin.shopkeepers.api.util.UnmodifiableItemStack;
+import com.nisovin.shopkeepers.nexo.NexoIntegration;
 import com.nisovin.shopkeepers.shopkeeper.AbstractShopkeeper;
 import com.nisovin.shopkeepers.shopkeeper.SKDefaultShopTypes;
 import com.nisovin.shopkeepers.shopkeeper.ShopkeeperData;
@@ -27,6 +27,7 @@ import com.nisovin.shopkeepers.util.data.property.BasicProperty;
 import com.nisovin.shopkeepers.util.data.property.Property;
 import com.nisovin.shopkeepers.util.data.serialization.InvalidDataException;
 import com.nisovin.shopkeepers.util.inventory.InventoryUtils;
+import com.nisovin.shopkeepers.util.inventory.ItemIdentityTags;
 import com.nisovin.shopkeepers.util.java.CollectionUtils;
 import com.nisovin.shopkeepers.util.java.Validate;
 import com.nisovin.shopkeepers.util.logging.Log;
@@ -114,7 +115,7 @@ public class SKTradingPlayerShopkeeper
 			UnmodifiableItemStack resultItem = offer.getResultItem();
 			boolean outOfStock = !InventoryUtils.containsAtLeast(
 					stockContainerContents,
-					ItemsAdderIntegration.stockPredicate(resultItem),
+					NexoIntegration.stockPredicate(resultItem),
 					resultItem.getAmount()
 			);
 			TradingRecipe recipe = SKTradeOffer.toTradingRecipe(offer, outOfStock);
@@ -169,7 +170,7 @@ public class SKTradingPlayerShopkeeper
 	public boolean hasOffer(ItemStack resultItem) {
 		Validate.notNull(resultItem, "resultItem is null");
 		for (TradeOffer offer : this.getOffers()) {
-			if (ItemsAdderIntegration.matchesStock(offer.getResultItem(), resultItem)) {
+			if (NexoIntegration.matchesStock(offer.getResultItem(), resultItem)) {
 				return true;
 			}
 		}
@@ -180,6 +181,17 @@ public class SKTradingPlayerShopkeeper
 		for (TradeOffer offer : this.getOffers()) {
 			if (offer.areItemsEqual(tradingRecipe)) {
 				return offer;
+			}
+		}
+
+		// The required items of the trading recipe might lack the offer's identity tags:
+		if (ItemIdentityTags.isIgnored()) {
+			for (TradeOffer offer : this.getOffers()) {
+				if (ItemIdentityTags.isEqual(offer.getResultItem(), tradingRecipe.getResultItem())
+						&& ItemIdentityTags.isEqual(offer.getItem1(), tradingRecipe.getItem1())
+						&& ItemIdentityTags.isEqual(offer.getItem2(), tradingRecipe.getItem2())) {
+					return offer;
+				}
 			}
 		}
 		return null;

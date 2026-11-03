@@ -3,6 +3,7 @@ package com.nisovin.shopkeepers.shopobjects.entity.base;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.bukkit.Difficulty;
@@ -35,9 +36,11 @@ import com.nisovin.shopkeepers.ui.editor.Button;
 import com.nisovin.shopkeepers.util.annotations.ReadWrite;
 import com.nisovin.shopkeepers.util.bukkit.EntityUtils;
 import com.nisovin.shopkeepers.util.bukkit.LocationUtils;
+import com.nisovin.shopkeepers.util.bukkit.SchedulerUtils;
 import com.nisovin.shopkeepers.util.bukkit.TextUtils;
 import com.nisovin.shopkeepers.util.bukkit.Ticks;
 import com.nisovin.shopkeepers.util.bukkit.WorldUtils;
+import com.nisovin.shopkeepers.util.data.property.value.PropertyValue;
 import com.nisovin.shopkeepers.util.data.serialization.InvalidDataException;
 import com.nisovin.shopkeepers.util.java.CyclicCounter;
 import com.nisovin.shopkeepers.util.java.RateLimiter;
@@ -145,6 +148,37 @@ public abstract class BaseEntityShopObject<E extends Entity>
 		return entity;
 	}
 
+	/**
+	 * Runs the given task, which updates the spawned entity, on the thread that owns the entity.
+	 * <p>
+	 * If no entity is spawned, or the current thread owns the entity, the task is run right away.
+	 * Otherwise (Folia: e.g. the shop is edited remotely, or by a player that has moved into another
+	 * region), the task is run during the entity's next tick. It is skipped if the entity has been
+	 * despawned or replaced in the meantime: A newly spawned entity is already set up with the
+	 * shop object's current state.
+	 * 
+	 * @param task
+	 *            the task, not <code>null</code>
+	 */
+	protected final void runOnEntityThread(Runnable task) {
+		@Nullable E entity = this.entity;
+		if (entity == null || SchedulerUtils.isOwnedByCurrentRegion(entity)) {
+			task.run();
+			return;
+		}
+
+		SchedulerUtils.runEntityTaskOrOmit(SKShopkeepersPlugin.getInstance(), entity, () -> {
+			if (this.entity != entity) return; // Despawned or replaced
+			task.run();
+		});
+	}
+
+	@Override
+	protected void runPropertyChangeListener(PropertyValue<?> propertyValue, Runnable listener) {
+		// The listeners apply the new property values to the entity:
+		this.runOnEntityThread(listener);
+	}
+
 	private @Nullable Location getSpawnLocation() {
 		Location spawnLocation = shopkeeper.getLocation();
 		if (spawnLocation == null) return null; // World not loaded
@@ -243,13 +277,21 @@ public abstract class BaseEntityShopObject<E extends Entity>
 		// Disable AI:
 		this.cleanupAI();
 
-		// Remove metadata again:
-		ShopkeeperMetadata.remove(entity);
-
-		// Remove the entity (if it hasn't been removed already):
-		if (!entity.isDead()) {
-			entity.remove();
-		}
+		// Remove metadata again and remove the entity (if it hasn't been removed already):
+		// This has to happen on the thread that owns the entity. If this is not the current
+		// thread, e.g. when the shopkeeper is deleted via command from elsewhere, the entity is
+		// removed during its next tick.
+		Runnable removeEntity = () -> {
+			ShopkeeperMetadata.remove(entity);
+			if (!entity.isDead()) {
+				entity.remove();
+			}
+		};
+		SchedulerUtils.runEntityCleanupTask(
+				SKShopkeepersPlugin.getInstance(),
+				entity,
+				removeEntity
+		);
 
 		this.entity = null;
 	}
@@ -465,13 +507,27 @@ public abstract class BaseEntityShopObject<E extends Entity>
 		if (spawnLocation == null) return false;
 
 		this.lastSpawnLocation = spawnLocation;
-		boolean teleportSuccess = SKShopkeepersPlugin.getInstance().getForcingEntityTeleporter()
-				.teleport(entity, spawnLocation);
+		CompletableFuture<Boolean> teleportResult = SKShopkeepersPlugin.getInstance()
+				.getForcingEntityTeleporter()
+				.teleportWithResult(entity, spawnLocation);
 
-		// Inform the AI system:
-		context.baseEntityShops.getEntityAI().updateLocation(this);
+		if (teleportResult.isDone()) {
+			// The entity has been teleported right away. Inform the AI system:
+			context.baseEntityShops.getEntityAI().updateLocation(this);
+			return Boolean.TRUE.equals(teleportResult.getNow(Boolean.FALSE));
+		}
 
-		return teleportSuccess;
+		// Asynchronous teleport (Folia): The entity only reaches its new location once the teleport
+		// completes. The AI system indexes the entity by its current chunk, so inform it only after
+		// the teleport, on the thread that then owns the entity.
+		teleportResult.whenComplete((success, error) -> {
+			SchedulerUtils.runOnEntityOrOmit(SKShopkeepersPlugin.getInstance(), entity, () -> {
+				// Skip if despawned or replaced in the meantime:
+				if (this.entity != entity || !entity.isValid()) return;
+				context.baseEntityShops.getEntityAI().updateLocation(this);
+			});
+		});
+		return true;
 	}
 
 	// TICKING
@@ -680,9 +736,11 @@ public abstract class BaseEntityShopObject<E extends Entity>
 
 	@Override
 	public void setName(@Nullable String name) {
-		@Nullable E entity = this.entity;
-		if (entity == null) return;
-		this.applyName(entity, name);
+		this.runOnEntityThread(() -> {
+			@Nullable E entity = this.entity;
+			if (entity == null) return;
+			this.applyName(entity, name);
+		});
 	}
 
 	protected void applyName(@NonNull E entity, @Nullable String name) {

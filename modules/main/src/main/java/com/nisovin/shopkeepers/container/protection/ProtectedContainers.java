@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -24,6 +23,7 @@ import com.nisovin.shopkeepers.config.Settings;
 import com.nisovin.shopkeepers.container.ShopContainers;
 import com.nisovin.shopkeepers.shopkeeper.player.AbstractPlayerShopkeeper;
 import com.nisovin.shopkeepers.util.bukkit.BlockLocation;
+import com.nisovin.shopkeepers.util.bukkit.EventUtils;
 import com.nisovin.shopkeepers.util.bukkit.MutableBlockLocation;
 import com.nisovin.shopkeepers.util.inventory.ItemUtils;
 import com.nisovin.shopkeepers.util.java.Validate;
@@ -79,9 +79,9 @@ public class ProtectedContainers {
 
 	public void enable() {
 		if (Settings.protectContainers) {
-			Bukkit.getPluginManager().registerEvents(containerProtectionListener, plugin);
+			EventUtils.registerEvents(containerProtectionListener, plugin);
 			if (Settings.preventItemMovement) {
-				Bukkit.getPluginManager().registerEvents(inventoryMoveItemListener, plugin);
+				EventUtils.registerEvents(inventoryMoveItemListener, plugin);
 			}
 		}
 	}

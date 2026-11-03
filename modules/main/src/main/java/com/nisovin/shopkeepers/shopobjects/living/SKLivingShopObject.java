@@ -387,12 +387,23 @@ public class SKLivingShopObject<E extends LivingEntity>
 		return equipmentProperty.getValue();
 	}
 
+	@Override
+	protected void runPropertyChangeListener(PropertyValue<?> propertyValue, Runnable listener) {
+		if (propertyValue == equipmentProperty) {
+			// The equipment listener needs to be set right away. The equipment listener runs the
+			// entity updates on the entity's thread itself.
+			listener.run();
+		} else {
+			super.runPropertyChangeListener(propertyValue, listener);
+		}
+	}
+
 	private void onEquipmentPropertyChanged() {
 		this.setEquipmentChangedListener();
 
 		// Apply the new equipment and inform sub-types, but don't forcefully mark the shopkeeper as
 		// dirty here: This is already handled by the equipment property itself, if necessary.
-		this.onEquipmentChanged();
+		this.runOnEntityThread(this::onEquipmentChanged);
 	}
 
 	private void setEquipmentChangedListener() {
@@ -401,7 +412,7 @@ public class SKLivingShopObject<E extends LivingEntity>
 
 	private void handleEquipmentChanged() {
 		shopkeeper.markDirty();
-		this.onEquipmentChanged();
+		this.runOnEntityThread(this::onEquipmentChanged);
 	}
 
 	// Can be overridden in sub-types.

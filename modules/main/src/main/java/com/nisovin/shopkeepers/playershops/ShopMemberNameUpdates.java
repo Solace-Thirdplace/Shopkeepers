@@ -16,6 +16,7 @@ import com.nisovin.shopkeepers.api.shopkeeper.player.PlayerShopkeeper;
 import com.nisovin.shopkeepers.debug.DebugOptions;
 import com.nisovin.shopkeepers.dependencies.citizens.CitizensUtils;
 import com.nisovin.shopkeepers.shopkeeper.player.AbstractPlayerShopkeeper;
+import com.nisovin.shopkeepers.util.bukkit.EventUtils;
 import com.nisovin.shopkeepers.util.bukkit.TextUtils;
 import com.nisovin.shopkeepers.util.java.Trilean;
 import com.nisovin.shopkeepers.util.java.Validate;
@@ -31,7 +32,7 @@ public class ShopMemberNameUpdates implements Listener {
 	}
 
 	public void onEnable() {
-		Bukkit.getPluginManager().registerEvents(this, plugin);
+		EventUtils.registerEvents(this, plugin);
 
 		// Update the owner and member information for all players that are already online:
 		for (Player player : Bukkit.getOnlinePlayers()) {

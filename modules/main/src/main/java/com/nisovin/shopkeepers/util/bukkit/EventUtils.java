@@ -1,7 +1,9 @@
 package com.nisovin.shopkeepers.util.bukkit;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -9,8 +11,11 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+import org.bukkit.Bukkit;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
+import org.bukkit.event.EventException;
+import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
@@ -26,6 +31,90 @@ import com.nisovin.shopkeepers.util.java.Validate;
 import com.nisovin.shopkeepers.util.logging.Log;
 
 public final class EventUtils {
+
+	/**
+	 * Registers all event handlers of the given listener, like
+	 * {@link org.bukkit.plugin.PluginManager#registerEvents(Listener, Plugin)}.
+	 * <p>
+	 * The event handlers hold the {@link PluginLock} while they handle synchronous events.
+	 * Asynchronous events are handled without the lock.
+	 * 
+	 * @param listener
+	 *            the listener, not <code>null</code>
+	 * @param plugin
+	 *            the plugin, not <code>null</code>
+	 */
+	public static void registerEvents(Listener listener, Plugin plugin) {
+		Validate.notNull(listener, "listener is null");
+		Validate.notNull(plugin, "plugin is null");
+		Set<Method> methods = new LinkedHashSet<>();
+		methods.addAll(Arrays.asList(listener.getClass().getMethods()));
+		methods.addAll(Arrays.asList(listener.getClass().getDeclaredMethods()));
+		for (Method method : methods) {
+			EventHandler eventHandler = method.getAnnotation(EventHandler.class);
+			if (eventHandler == null) continue;
+			if (method.isBridge() || method.isSynthetic()) continue;
+
+			Class<?>[] parameterTypes = method.getParameterTypes();
+			if (parameterTypes.length != 1) {
+				Log.severe("Invalid event handler method: " + method.toGenericString());
+				continue;
+			}
+			Class<?> parameterType = Unsafe.assertNonNull(parameterTypes[0]);
+			if (!Event.class.isAssignableFrom(parameterType)) {
+				Log.severe("Invalid event handler method: " + method.toGenericString());
+				continue;
+			}
+
+			Class<? extends Event> eventClass = parameterType.asSubclass(Event.class);
+			method.setAccessible(true);
+			EventExecutor executor = lockedExecutor((eventListener, event) -> {
+				if (!eventClass.isAssignableFrom(event.getClass())) {
+					return;
+				}
+				try {
+					method.invoke(eventListener, event);
+				} catch (InvocationTargetException e) {
+					throw new EventException(e.getCause());
+				} catch (Throwable e) {
+					throw new EventException(e);
+				}
+			});
+			Bukkit.getPluginManager().registerEvent(
+					eventClass,
+					listener,
+					Unsafe.assertNonNull(eventHandler.priority()),
+					executor,
+					plugin,
+					eventHandler.ignoreCancelled()
+			);
+		}
+	}
+
+	/**
+	 * Wraps the given {@link EventExecutor} so that it holds the {@link PluginLock} while it handles
+	 * synchronous events.
+	 * 
+	 * @param executor
+	 *            the executor, not <code>null</code>
+	 * @return the wrapped executor
+	 */
+	public static EventExecutor lockedExecutor(EventExecutor executor) {
+		Validate.notNull(executor, "executor is null");
+		return (listener, event) -> {
+			if (event.isAsynchronous()) {
+				executor.execute(listener, event);
+				return;
+			}
+
+			PluginLock.lock();
+			try {
+				executor.execute(listener, event);
+			} finally {
+				PluginLock.unlock();
+			}
+		};
+	}
 
 	/**
 	 * Sets the {@link Cancellable#setCancelled(boolean) cancellation state} of the given

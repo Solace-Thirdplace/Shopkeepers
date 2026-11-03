@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import org.bukkit.Bukkit;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
@@ -19,6 +18,7 @@ import com.nisovin.shopkeepers.container.ShopContainers;
 import com.nisovin.shopkeepers.container.protection.ProtectedContainers;
 import com.nisovin.shopkeepers.lang.Messages;
 import com.nisovin.shopkeepers.util.bukkit.BlockLocation;
+import com.nisovin.shopkeepers.util.bukkit.EventUtils;
 import com.nisovin.shopkeepers.util.bukkit.MutableBlockLocation;
 import com.nisovin.shopkeepers.util.bukkit.TextUtils;
 import com.nisovin.shopkeepers.util.interaction.InteractionUtils;
@@ -51,7 +51,7 @@ public class ContainerSelection {
 	}
 
 	public void onEnable() {
-		Bukkit.getPluginManager().registerEvents(containersListener, plugin);
+		EventUtils.registerEvents(containersListener, plugin);
 	}
 
 	public void onDisable() {

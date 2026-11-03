@@ -15,9 +15,11 @@ import com.nisovin.shopkeepers.api.internal.util.Unsafe;
 import com.nisovin.shopkeepers.api.shopkeeper.container.DefaultShopContainerTypes;
 import com.nisovin.shopkeepers.api.shopkeeper.container.ShopContainer;
 import com.nisovin.shopkeepers.api.shopkeeper.container.ShopContainerType;
+import com.nisovin.shopkeepers.api.util.ChunkCoords;
 import com.nisovin.shopkeepers.config.Settings;
 import com.nisovin.shopkeepers.util.annotations.ReadOnly;
 import com.nisovin.shopkeepers.util.bukkit.BlockLocation;
+import com.nisovin.shopkeepers.util.bukkit.SchedulerUtils;
 import com.nisovin.shopkeepers.util.data.container.DataContainer;
 import com.nisovin.shopkeepers.util.data.container.value.DataValue;
 import com.nisovin.shopkeepers.util.data.property.BasicProperty;
@@ -83,6 +85,18 @@ public final class SKShopContainer implements ShopContainer {
 	public @Nullable Inventory getInventory() {
 		Block block = this.getBlock();
 		if (block == null) return null;
+		// Only the thread that owns the container's chunk can access the container. On Folia, a
+		// trading or editor view that a player opened remotely (e.g. via /shopkeeper remote) for a
+		// shop in another region would otherwise read and modify the container from the wrong
+		// thread. The container is treated as unavailable in that case. On servers with a single
+		// main thread, this is always the owning thread.
+		if (!SchedulerUtils.isOwnedByCurrentRegion(
+				block.getWorld(),
+				ChunkCoords.fromBlock(block.getX()),
+				ChunkCoords.fromBlock(block.getZ())
+		)) {
+			return null;
+		}
 		if (!ShopContainers.isSupportedContainer(block.getType())) return null;
 
 		return ShopContainers.getInventory(block); // Not null

@@ -5,8 +5,11 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import com.nisovin.shopkeepers.api.ShopkeepersPlugin;
 import com.nisovin.shopkeepers.api.shopkeeper.Shopkeeper;
 import com.nisovin.shopkeepers.lang.Messages;
+import com.nisovin.shopkeepers.util.bukkit.PluginLock;
+import com.nisovin.shopkeepers.util.bukkit.SchedulerUtils;
 import com.nisovin.shopkeepers.util.bukkit.TeleportHelper;
 import com.nisovin.shopkeepers.util.bukkit.TextUtils;
 
@@ -40,6 +43,23 @@ public final class ShopkeeperTeleporter {
 		}
 		assert shopkeeperLocation != null;
 
+		// Finding a safe destination reads the blocks around the shopkeeper. This has to happen on
+		// the thread that owns the shopkeeper's location:
+		Location finalShopkeeperLocation = shopkeeperLocation;
+		return SchedulerUtils.runInRegionOrOmit(
+				ShopkeepersPlugin.getInstance(),
+				shopkeeperLocation,
+				() -> teleport(player, shopkeeper, finalShopkeeperLocation, force, sender)
+		);
+	}
+
+	private static void teleport(
+			Player player,
+			Shopkeeper shopkeeper,
+			Location shopkeeperLocation,
+			boolean force,
+			@Nullable CommandSender sender
+	) {
 		// Teleport the player a few blocks in front of the shopkeeper:
 		shopkeeperLocation.setYaw(shopkeeper.getYaw());
 		shopkeeperLocation.setPitch(0);
@@ -66,7 +86,7 @@ public final class ShopkeeperTeleporter {
 				if (sender != null) {
 					TextUtils.sendMessage(sender, Messages.teleportNoSafeLocationFound);
 				}
-				return false;
+				return;
 			}
 
 			// Force: Teleport to the shopkeeper's location, even if it is unsafe.
@@ -82,20 +102,22 @@ public final class ShopkeeperTeleporter {
 		teleportLocation.setDirection(shopkeeperLocation.toVector().subtract(teleportPlayerEyeLocationVector));
 		teleportLocation.setPitch(0);
 
-		if (!player.teleport(teleportLocation)) {
-			if (sender != null) {
-				TextUtils.sendMessage(sender, Messages.teleportFailed);
+		var teleportResult = SchedulerUtils.teleportAsync(player, teleportLocation);
+		teleportResult.thenAccept(success -> PluginLock.run(() -> {
+			if (!Boolean.TRUE.equals(success)) {
+				if (sender != null) {
+					TextUtils.sendMessage(sender, Messages.teleportFailed);
+				}
+				return;
 			}
-			return false;
-		}
 
-		if (sender != null) {
-			TextUtils.sendMessage(sender, Messages.teleportSuccess,
-					"player", TextUtils.getPlayerText(player),
-					"shop", TextUtils.getShopText(shopkeeper)
-			);
-		}
-		return true;
+			if (sender != null) {
+				TextUtils.sendMessage(sender, Messages.teleportSuccess,
+						"player", TextUtils.getPlayerText(player),
+						"shop", TextUtils.getShopText(shopkeeper)
+				);
+			}
+		}));
 	}
 
 	private ShopkeeperTeleporter() {

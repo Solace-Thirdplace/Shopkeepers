@@ -23,6 +23,8 @@ import com.nisovin.shopkeepers.config.Settings;
 import com.nisovin.shopkeepers.dependencies.citizens.CitizensDependency;
 import com.nisovin.shopkeepers.shopkeeper.AbstractShopkeeper;
 import com.nisovin.shopkeepers.shopkeeper.registry.SKShopkeeperRegistry;
+import com.nisovin.shopkeepers.util.bukkit.EventUtils;
+import com.nisovin.shopkeepers.util.bukkit.SchedulerUtils;
 import com.nisovin.shopkeepers.util.bukkit.TextUtils;
 import com.nisovin.shopkeepers.util.java.TimeUtils;
 import com.nisovin.shopkeepers.util.java.Validate;
@@ -93,7 +95,7 @@ public class CitizensShops {
 	// This is called on plugin enable.
 	public void onEnable() {
 		this.enable();
-		Bukkit.getPluginManager().registerEvents(pluginListener, plugin);
+		EventUtils.registerEvents(pluginListener, plugin);
 	}
 
 	// This is called on plugin disable.
@@ -176,11 +178,11 @@ public class CitizensShops {
 		this.registerShopkeeperTrait();
 
 		// Register citizens listener:
-		Bukkit.getPluginManager().registerEvents(citizensListener, plugin);
+		EventUtils.registerEvents(citizensListener, plugin);
 		citizensListener.onEnable();
 
 		// Delayed to run after shopkeepers and NPCs were loaded:
-		Bukkit.getScheduler().runTaskLater(plugin, new DelayedSetupTask(), 3L);
+		SchedulerUtils.runTaskLaterOrOmit(plugin, new DelayedSetupTask(), 3L);
 
 		// Enabled:
 		citizensShopsEnabled = true;

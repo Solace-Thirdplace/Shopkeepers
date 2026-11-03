@@ -50,6 +50,7 @@ import com.nisovin.shopkeepers.compat.CompatProvider;
 import com.nisovin.shopkeepers.config.Settings;
 import com.nisovin.shopkeepers.shopobjects.entity.base.EntityAI;
 import com.nisovin.shopkeepers.util.annotations.ReadOnly;
+import com.nisovin.shopkeepers.util.bukkit.EventUtils;
 import com.nisovin.shopkeepers.util.bukkit.RegistryUtils;
 import com.nisovin.shopkeepers.util.bukkit.ServerUtils;
 import com.nisovin.shopkeepers.util.data.container.DataContainer;
@@ -105,7 +106,7 @@ public final class CompatProviderImpl implements CompatProvider {
 		if (Settings.protectContainers
 				&& Settings.preventCopperGolemAccess
 				&& ClassUtils.getClassOrNull("org.bukkit.event.entity.EntityTargetBlockEvent") != null) {
-			Bukkit.getPluginManager().registerEvents(copperChestProtectionListener, plugin);
+			EventUtils.registerEvents(copperChestProtectionListener, plugin);
 		}
 	}
 

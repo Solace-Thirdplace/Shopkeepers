@@ -8,6 +8,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import com.nisovin.shopkeepers.SKShopkeepersPlugin;
 import com.nisovin.shopkeepers.api.ShopkeepersPlugin;
 import com.nisovin.shopkeepers.api.internal.util.Unsafe;
 import com.nisovin.shopkeepers.commands.lib.Command;
@@ -21,6 +22,7 @@ import com.nisovin.shopkeepers.commands.lib.context.CommandContextView;
 import com.nisovin.shopkeepers.currency.Currencies;
 import com.nisovin.shopkeepers.currency.Currency;
 import com.nisovin.shopkeepers.lang.Messages;
+import com.nisovin.shopkeepers.util.bukkit.SchedulerUtils;
 import com.nisovin.shopkeepers.util.bukkit.TextUtils;
 import com.nisovin.shopkeepers.util.inventory.InventoryUtils;
 import com.nisovin.shopkeepers.util.java.StringUtils;
@@ -74,31 +76,36 @@ class CommandGiveCurrency extends Command {
 		ItemStack item = currency.getItemData().createItemStack(amount);
 		assert item != null;
 
-		PlayerInventory inventory = targetPlayer.getInventory();
-		@Nullable ItemStack[] contents = Unsafe.castNonNull(inventory.getStorageContents());
-		int remaining = InventoryUtils.addItems(contents, item);
-		InventoryUtils.setStorageContents(inventory, contents);
-		if (remaining > 0) {
-			item.setAmount(remaining);
-			targetPlayer.getWorld().dropItem(targetPlayer.getEyeLocation(), item);
-		}
+		// The target player's inventory can only be modified, and items dropped at their location, on
+		// the thread that owns the player (Folia: the command may run on another region's thread or
+		// on the global region thread).
+		SchedulerUtils.runOnEntityOrOmit(SKShopkeepersPlugin.getInstance(), targetPlayer, () -> {
+			PlayerInventory inventory = targetPlayer.getInventory();
+			@Nullable ItemStack[] contents = Unsafe.castNonNull(inventory.getStorageContents());
+			int remaining = InventoryUtils.addItems(contents, item);
+			InventoryUtils.setStorageContents(inventory, contents);
+			if (remaining > 0) {
+				item.setAmount(remaining);
+				targetPlayer.getWorld().dropItem(targetPlayer.getEyeLocation(), item);
+			}
 
-		// Success:
-		// TODO Show currency item via hover text?
-		// Inform target player:
-		TextUtils.sendMessage(targetPlayer, Messages.currencyItemsReceived,
-				"amount", amount,
-				"currency", currency.getDisplayName(),
-				"currencyId", currency.getId()
-		);
-		if (!targetSelf) {
-			// Inform command executor:
-			TextUtils.sendMessage(sender, Messages.currencyItemsGiven,
-					"player", TextUtils.getPlayerText(targetPlayer),
+			// Success:
+			// TODO Show currency item via hover text?
+			// Inform target player:
+			TextUtils.sendMessage(targetPlayer, Messages.currencyItemsReceived,
 					"amount", amount,
 					"currency", currency.getDisplayName(),
 					"currencyId", currency.getId()
 			);
-		}
+			if (!targetSelf) {
+				// Inform command executor:
+				TextUtils.sendMessage(sender, Messages.currencyItemsGiven,
+						"player", TextUtils.getPlayerText(targetPlayer),
+						"amount", amount,
+						"currency", currency.getDisplayName(),
+						"currencyId", currency.getId()
+				);
+			}
+		});
 	}
 }

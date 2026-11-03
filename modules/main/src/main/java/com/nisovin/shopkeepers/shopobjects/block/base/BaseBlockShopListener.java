@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -81,7 +80,7 @@ class BaseBlockShopListener implements Listener {
 	}
 
 	void onEnable() {
-		Bukkit.getPluginManager().registerEvents(this, plugin);
+		EventUtils.registerEvents(this, plugin);
 		// Ensure that our interact event handler is always executed first, even after plugin
 		// reloads:
 		// In order to not change the order among the already registered event handlers of our own

@@ -2,7 +2,6 @@ package com.nisovin.shopkeepers.container.protection;
 
 import java.util.List;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.event.HandlerList;
@@ -17,6 +16,7 @@ import com.nisovin.shopkeepers.config.Settings;
 import com.nisovin.shopkeepers.container.ShopContainers;
 import com.nisovin.shopkeepers.shopcreation.ShopCreationItem;
 import com.nisovin.shopkeepers.util.annotations.ReadOnly;
+import com.nisovin.shopkeepers.util.bukkit.EventUtils;
 
 public class RemoveShopOnContainerBreak {
 
@@ -37,7 +37,7 @@ public class RemoveShopOnContainerBreak {
 
 	public void onEnable() {
 		if (Settings.deleteShopkeeperOnBreakContainer) {
-			Bukkit.getPluginManager().registerEvents(removeShopOnContainerBreakListener, plugin);
+			EventUtils.registerEvents(removeShopOnContainerBreakListener, plugin);
 		}
 	}
 

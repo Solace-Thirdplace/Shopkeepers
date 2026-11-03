@@ -4,7 +4,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.scheduler.BukkitTask;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import com.nisovin.shopkeepers.api.internal.util.Unsafe;
@@ -66,7 +65,7 @@ public abstract class SingletonTask {
 
 	private State state = State.NOT_RUNNING;
 	// The Bukkit task asynchronously executing this task. Only relevant for async executions.
-	private @Nullable BukkitTask asyncTask = null;
+	private @Nullable TaskHandle asyncTask = null;
 	// The (internal) callbacks of the current execution:
 	// Run immediately, possibly asynchronously:
 	private @Nullable Runnable internalCallback = null;
@@ -377,19 +376,57 @@ public abstract class SingletonTask {
 	 */
 	public abstract class InternalAsyncTask implements Runnable {
 
-		private @Nullable BukkitTask task; // Captured Bukkit task
+		private @Nullable AsyncTaskHandle task; // Captured task
 
 		protected InternalAsyncTask() {
 		}
 
-		private BukkitTask runTaskAsynchronously() {
-			this.task = Bukkit.getScheduler().runTaskAsynchronously(plugin, this);
+		private TaskHandle runTaskAsynchronously() {
+			// The handle is assigned before the task is scheduled, because the task may start
+			// executing right away:
+			AsyncTaskHandle task = new AsyncTaskHandle();
+			this.task = task;
+			TaskHandle scheduledTask = SchedulerUtils.runAsyncTaskOrOmit(plugin, this);
+			if (scheduledTask == null) {
+				throw new IllegalStateException("Could not schedule the async task!");
+			}
+			task.setScheduledTask(scheduledTask);
 			return task;
 		}
 
 		@Override
 		public final void run() {
 			executeTask(task);
+		}
+	}
+
+	private static final class AsyncTaskHandle implements TaskHandle {
+
+		private volatile boolean cancelled = false;
+		private volatile @Nullable TaskHandle scheduledTask = null;
+
+		AsyncTaskHandle() {
+		}
+
+		void setScheduledTask(TaskHandle scheduledTask) {
+			this.scheduledTask = scheduledTask;
+			if (cancelled) {
+				scheduledTask.cancel();
+			}
+		}
+
+		@Override
+		public void cancel() {
+			cancelled = true;
+			TaskHandle scheduledTask = this.scheduledTask;
+			if (scheduledTask != null) {
+				scheduledTask.cancel();
+			}
+		}
+
+		@Override
+		public boolean isCancelled() {
+			return cancelled;
 		}
 	}
 
@@ -460,7 +497,7 @@ public abstract class SingletonTask {
 	// asyncTask: The async task executing this method. Null for sync executions.
 	// If the async task got cancelled and another execution has already been started, this may not
 	// match the current value of this class' asyncTask variable.
-	private void executeTask(@Nullable BukkitTask asyncTask) {
+	private void executeTask(@Nullable TaskHandle asyncTask) {
 		if (asyncTask != null) {
 			// Asynchronous execution:
 			// Requires the lock for coordination with the main thread, and might have been
